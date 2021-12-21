@@ -1,6 +1,7 @@
 import logging
-import random
+import math
 import os
+import random
 
 import numpy as np
 
@@ -72,7 +73,9 @@ def set_addons():
 
 def render_settings():
     bpy.data.objects['light'].location = mathutils.Vector((4, -4.2, 5))
-    bpy.data.lights['light'].energy = 500
+    # bpy.data.objects['light'].location = mathutils.Vector((-0.02, -3.4, 19.3))
+    bpy.data.lights['light'].radius = 0
+    bpy.data.lights['light'].energy = 1000
 
     bpy.data.objects['camera'].location = mathutils.Vector((0.30241375, -1.050002, 1.37315))
     bpy.data.objects['camera'].rotation_euler = mathutils.Euler((1.5708, 0, 0))
@@ -82,6 +85,37 @@ def render_settings():
     # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
     # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     bpy.context.scene.render.engine = 'CYCLES'
+
+
+import math
+
+
+def poseRig(ob, poseTable):
+    bpy.ops.object.mode_set(mode='OBJECT')
+    #     ob = bpy.context.scene.objects["雪ノ下雪乃Ver1.00_arm"]       # Get the object
+    bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
+    bpy.context.view_layer.objects.active = ob  # Make the cube the active object
+    ob.select_set(True)  # Select the cube
+    bpy.ops.object.mode_set(mode='POSE')
+
+    for (bname, axis, angle) in poseTable:
+        pbone = ob.pose.bones[bname]
+        # Set rotation mode to Euler XYZ, easier to understand
+        # than default quaternions
+        pbone.rotation_mode = 'XYZ'
+        # Documentation bug: Euler.rotate(angle,axis):
+        # axis in ['x','y','z'] and not ['X','Y','Z']
+        pbone.rotation_euler.rotate_axis(axis, math.radians(angle))
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+# poseRig(
+#     bpy.data.objects['雪ノ下雪乃Ver1.00_arm'],
+#     [
+#         ('頭', 'Y', 60)
+#     ]
+# )
+# print(bpy.data.objects['雪ノ下雪乃Ver1.00_arm'].pose.bones['頭'].matrix)
 
 
 def import_model(path_input: str):
@@ -171,6 +205,21 @@ class Renderer:
 
         # change value
         bpy.context.object.data.shape_keys.key_blocks[key].value = value
+
+    def edit_pose(self):
+        bpy.ops.object.posemode_toggle()
+        bpy.ops.pose.rot_clear()
+        bpy.ops.pose.scale_clear()
+        bpy.ops.pose.transforms_clear()
+        bpy.ops.cats_manual.start_pose_mode()
+        # '頭'
+        bpy.ops.outliner.item_activate(extend=False, deselect_all=True)
+        bpy.ops.transform.rotate(value=-0.798359, orient_axis='Y', orient_type='GLOBAL',
+                                 orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL',
+                                 constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False,
+                                 proportional_edit_falloff='SMOOTH', proportional_size=1,
+                                 use_proportional_connected=False, use_proportional_projected=False,
+                                 release_confirm=True)
 
 
 if __name__ == '__main__':
