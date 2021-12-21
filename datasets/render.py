@@ -175,7 +175,8 @@ class Renderer:
 
 if __name__ == '__main__':
     r = Renderer()
-    path = '../samples/ini-T式雪ノ下雪乃ver100/雪ノ下雪乃ver1.00.pmx'
+    path = 'samples/ini-T式雪ノ下雪乃ver100/雪ノ下雪乃ver1.00.pmx'
+    path = os.path.join(os.getcwd(), path)
     r.import_model(path)
 
     r.set_output_path(os.path.join(os.getcwd(), 'base.png'))
