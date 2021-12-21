@@ -1,7 +1,13 @@
+import logging
 import random
 import os
 
+import numpy as np
+
 import bpy
+
+logging.getLogger("bpy").setLevel(logging.WARNING)
+
 import addon_utils
 import mathutils
 
@@ -11,12 +17,16 @@ def reset_blender():
 
 
 def clean_blender():
-    for dataset in [bpy.data.objects, bpy.data.meshes,
-                    bpy.data.materials, bpy.data.textures, bpy.data.images,
-                    bpy.data.collections]:
-        for key, value in dataset.items():
-            if key != 'camera' and key != 'light':
-                dataset.remove(value)
+    for i in range(10):
+        for attribute in dir(bpy.data):
+            try:
+                bpy_dataset = getattr(bpy.data, attribute)
+                for key, value in bpy_dataset.items():
+                    if key != 'camera' and key != 'light' and key != 'Scripting' and not (
+                            attribute == 'texts' and key == 'render.py'):
+                        bpy_dataset.remove(value)
+            except Exception as e:
+                pass
 
 
 def build_camera_light():
@@ -37,10 +47,13 @@ def set_addons():
     addon_data = [
         {'name': 'VRM_Addon_for_Blender-release',
          'url': '',
-         'path': '/root/talking_head_anime/addons/VRM_Addon_for_Blender.zip', },
-        {'name': 'mmd_tools',
+         'path': './addons/VRM_Addon_for_Blender-release.zip', },
+        # {'name': 'mmd_tools',
+        #  'url': '',
+        #  'path': './addons/mmd_tools-v1.0.1.1.zip', },
+        {'name': 'cats-blender-plugin-master',
          'url': '',
-         'path': 'addons/mmd_tools-v1.0.1.zip', },
+         'path': './addons/cats-blender-plugin-master.zip', },
     ]
     for data in addon_data:
         addon_name = data['name']
@@ -67,8 +80,8 @@ def render_settings():
     bpy.context.scene.render.image_settings.file_format = 'PNG'
 
     # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
-    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-    # bpy.context.scene.render.engine = 'CYCLES'
+    # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+    bpy.context.scene.render.engine = 'CYCLES'
 
 
 def import_model(path_input: str):
@@ -76,35 +89,98 @@ def import_model(path_input: str):
     if file_extension == 'vrm':
         bpy.ops.import_scene.vrm(filepath=path_input)
     elif file_extension == 'pmx':
-        bpy.ops.mmd_tools.import_model(filepath=path_input)
+        # bpy.ops.mmd_tools.import_model(filepath=path_input)
+        bpy.ops.cats_importer.import_any_model(filepath=path_input)
     else:
         raise ValueError(f'file extension {file_extension} not supported')
 
 
-def set_output_path(path_output):
-    bpy.context.scene.render.filepath = path_output
-
-
-def render():
-    bpy.ops.render.render(write_still=True)
-
-
 class Renderer:
     def __init__(self):
-        reset_blender()
+        clean_blender()
         build_camera_light()
         set_addons()
         render_settings()
 
         self.current_model = ''
 
-    def render(self, path_model, path_output, parameters=None):
-        if not self.current_model == path_model:
+    def import_model(self, path_model: str):
+        if self.current_model != path_model:
             print('deleting old model and loading new model')
             clean_blender()
             import_model(path_model)
             self.current_model = path_model
 
-        set_output_path(path_output)
+    def render_complex(self, path_output, parameters=None):
+        self.set_output_path(path_output)
 
-        render()
+        self.render()
+
+    @staticmethod
+    def render():
+        bpy.ops.render.render(write_still=True)
+
+    @staticmethod
+    def set_output_path(path_output):
+        bpy.context.scene.render.filepath = path_output
+
+    def render_to_numpy_array(self):
+        # switch on nodes
+        bpy.context.scene.use_nodes = True
+        tree = bpy.context.scene.node_tree
+        links = tree.links
+
+        # clear default nodes
+        # for n in tree.nodes:
+        #     tree.nodes.remove(n)
+
+        # create input render layer node
+        rl = tree.nodes.new('CompositorNodeRLayers')
+        rl.location = 185, 285
+
+        # create output node
+        v = tree.nodes.new('CompositorNodeViewer')
+        v.location = 750, 210
+        v.use_alpha = False
+
+        # Links
+        links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
+
+        # render
+        bpy.ops.render.render()
+
+        # get viewer pixels
+        pixels = bpy.data.images['Viewer Node'].pixels
+        print(len(pixels))  # size is always width * height * 4 (rgba)
+
+        # copy buffer to numpy array for faster manipulation
+        arr = np.array(pixels[:])
+        print(arr.shape)
+
+    def change_shapekey(self, key, value):
+        # find first object which has given key
+        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
+        for obj in bpy.data.objects:
+            obj.select_set(True)
+            if hasattr(obj.data, 'shape_keys'):
+                if key in obj.data.shape_keys.key_blocks:
+                    bpy.context.view_layer.objects.active = obj
+                    break
+            obj.select_set(False)
+        print(bpy.context.object)
+
+        # change value
+        bpy.context.object.data.shape_keys.key_blocks[key].value = value
+
+
+if __name__ == '__main__':
+    r = Renderer()
+    path = '../samples/ini-T式雪ノ下雪乃ver100/雪ノ下雪乃ver1.00.pmx'
+    r.import_model(path)
+
+    r.set_output_path(os.path.join(os.getcwd(), 'base.png'))
+    r.render()
+
+    # r.change_shapekey('あ', 1.0)
+    # r.set_output_path(os.path.join(os.getcwd(), 'a_1.png'))
+    r.render()
