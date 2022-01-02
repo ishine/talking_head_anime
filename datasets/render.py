@@ -1,5 +1,4 @@
 from collections import defaultdict
-import json
 import logging
 import math
 import os
@@ -13,104 +12,6 @@ import addon_utils
 import mathutils
 
 logging.getLogger("bpy").setLevel(logging.WARNING)
-
-
-# region filtering
-##################
-
-def valid_dirs(dir_root, path_save):
-    models = sorted([os.path.join(dir_root, file) for file in os.listdir(dir_root)
-                     if os.path.isdir(os.path.join(dir_root, file))])
-
-    pmxs = []
-    pmds = []
-    vrms = []
-
-    for dir_model in models:
-        for root, subdirs, files in os.walk(dir_model):
-            for file in files:
-                break_flag = False
-                if file.endswith('.pmx'):
-                    pmxs.append(dir_model)
-                    break_flag = True
-                    break
-                elif file.endswith('.pmd'):
-                    pmds.append(dir_model)
-                    break_flag = True
-                    break
-                elif file.endswith('.vrm'):
-                    vrms.append(dir_model)
-                    break_flag = True
-                    break
-
-                if break_flag:
-                    break
-
-    print(len(models), len(pmxs), len(pmds), len(vrms))
-
-    valid_list = sorted(pmxs + pmds + vrms)
-    valid_list = [os.path.basename(dirname) + '\n' for dirname in valid_list]
-    with open(path_save, 'w', encoding='utf-8') as f:
-        f.writelines(valid_list)
-
-
-def extract_shapekeys(dir_model, path_save):
-    """find and save shape keys and bones(poses)"""
-    # find loadable model
-    path_model = ''
-    for root, subdirs, files in os.walk(dir_model):
-        break_flag = False
-        for file in files:
-            path_model = os.path.join(root, file)
-            if file.endswith('.pmx'):
-                break_flag = True
-                break
-            elif file.endswith('.pmd'):
-                break_flag = True
-                break
-            elif file.endswith('.vrm'):
-                break_flag = True
-                break
-
-        if break_flag:
-            break
-
-    print(path_model)
-    # load model
-    r = Renderer()
-    r.import_model(path_model=path_model)
-
-    data = {key: {} for key in bpy.data.objects.keys()}
-
-    for key, obj in bpy.data.objects.items():
-        bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
-        bpy.context.view_layer.objects.active = obj
-        obj.select_set(True)
-
-        # get shape keys
-        if hasattr(obj.data, 'shape_keys') and obj.data.shape_keys is not None:
-            data[key]['shape_keys'] = obj.data.shape_keys.key_blocks.keys()
-            # shape_keys.extend(list(obj.data.shape_keys.key_blocks))
-
-        # get pose(bones)
-        if hasattr(obj, 'pose') and hasattr(obj.pose, 'bones') and obj.pose.bones is not None:
-            bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
-            bpy.context.view_layer.objects.active = obj
-            obj.select_set(True)
-            bpy.ops.object.mode_set(mode='POSE')
-            data[key]['bones'] = obj.pose.bones.keys()
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-        obj.select_set(False)
-
-    # print(lines)
-    with open(path_save, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
-
-
-##################
-# endregion
 
 
 def reset_blender():
@@ -218,6 +119,9 @@ class Renderer:
             clean_blender()
             import_model(path_model)
             self.current_model = path_model
+
+    def clear(self):
+        clean_blender()
 
     def render_complex(self, path_output, parameters=None):
         self.set_output_path(path_output)
@@ -351,28 +255,9 @@ def test_render():
 if __name__ == '__main__':
     import sys
 
+    test_render()
+
     # r = Renderer()
-
-    idx_file = 'metadata/nicovideo.txt'
-    with open(idx_file, 'r', encoding='utf-8') as f:
-        model_idxs = f.readlines()
-    model_idx = model_idxs[int(sys.argv[-1])].strip()
-    # dir_model = os.path.join(os.getcwd(), 'samples', model_idx)
-    dir_root = '/raid/vision/dhchoi/data/3d_models/models'
-    dir_model = os.path.join(dir_root, model_idx)
-    if os.path.exists(dir_model):
-        try:
-            print(dir_model)
-            path_save = os.path.join('./', 'metadata', 'shape_keys', f'{model_idx}.json')
-            os.makedirs(os.path.dirname(path_save), exist_ok=True)
-            extract_shapekeys(dir_model, path_save)
-        except Exception as e:
-            # raise e
-            print(e)
-            pass
-
-    print('###########finished############')
-
     # r.set_output_path(os.path.join(os.getcwd(), model_idx + '.png'))
     # obj = [value for key, value in bpy.data.objects.items() if 'mesh' in key][0]  # TODO this should be fixed, not works for all model
     # location = r.find_head_position(obj)
