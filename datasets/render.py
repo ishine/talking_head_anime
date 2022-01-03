@@ -74,12 +74,12 @@ def set_addons():
 
 
 def render_settings():
-    bpy.data.objects['light'].location = mathutils.Vector((4, -4.2, 5))
+    bpy.data.objects['light'].location = mathutils.Vector((0, -10, 0))
     # bpy.data.objects['light'].location = mathutils.Vector((-0.02, -3.4, 19.3))
     # bpy.data.lights['light'].radius = 0
     bpy.data.lights['light'].energy = 1000
 
-    bpy.data.objects['camera'].location = mathutils.Vector((0.30241375, -1.050002, 1.37315))
+    bpy.data.objects['camera'].location = mathutils.Vector((0, -5, 0))
     bpy.data.objects['camera'].rotation_euler = mathutils.Euler((1.5708, 0, 0))
 
     bpy.context.scene.render.image_settings.file_format = 'PNG'
@@ -87,9 +87,6 @@ def render_settings():
     # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
     # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     bpy.context.scene.render.engine = 'CYCLES'
-
-
-import math
 
 
 def import_model(path_input: str):
@@ -219,53 +216,91 @@ class Renderer:
 
 # region test
 
-def test_render():
+def test_render(model_path: str, dir_temp: str = './result_temp'):
+    """
+
+    Args:
+        model_path: path to model. recommended to give as absolute path
+        dir_temp: temporary dir to save rendered images. recommended to give as absolute path
+
+    Returns:
+
+    """
+    model_path = os.path.abspath(model_path)
+    dir_temp = os.path.abspath(dir_temp)
+    print(model_path)
+    print(dir_temp)
+    os.makedirs(dir_temp, exist_ok=True)
     r = Renderer()
-    path = 'samples/ini-T式雪ノ下雪乃ver100/雪ノ下雪乃ver1.00.pmx'
-    path = os.path.join(os.getcwd(), path)
-    r.import_model(path)
-    r.set_output_path(os.path.join(os.getcwd(), 'base.png'))
+    r.import_model(model_path)
+    bpy.context.scene.render.resolution_x = 512
+    bpy.context.scene.render.resolution_y = 512
+
+    # set camera position
+    for key, obj in bpy.data.objects.items():
+        if key == 'camera' or key == 'light':
+            continue
+        print(key, obj)
+        try:
+            location = r.find_head_position(obj)
+            bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -1, 0))
+            bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
+        except:
+            pass
+
+    # base image # TODO check if rest pose
+    r.set_output_path(os.path.join(dir_temp, 'base.png'))
     r.render()
 
-    # change shapekey
-    r.change_shapekey('あ', 1.0)
-    r.set_output_path(os.path.join(os.getcwd(), 'a_1.png'))
-    r.render()
+    # find bpy object with shape_keys
+    for key, obj in bpy.data.objects.items():
+        # set camera position
+        if key == 'camera' or key == 'light':
+            continue
+        print(key, obj)
+        # direction = -y -> +y
 
-    # rotate head
-    r.poseRig(
-        bpy.data.objects['雪ノ下雪乃Ver1.00_arm'],
-        [
-            ('頭', 'Y', 60)
-        ]
-    )
-    r.set_output_path(os.path.join(os.getcwd(), 'rotate.png'))
-    r.render()
+        # select single object
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
 
-    # find head and render
-    location = r.find_head_position(bpy.data.objects['雪ノ下雪乃Ver1.00_mesh'])
-    bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -1, 0))
-    bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
-    r.set_output_path(os.path.join(os.getcwd(), 'head.png'))
-    r.render()
+        # object with shape_keys
+        if hasattr(obj.data, 'shape_keys') and obj.data.shape_keys is not None:
+            for shape_key in ['あ', 'ウィンク', 'ウィンク右']:
+                try:
+                    r.change_shapekey(shape_key, 1.0)
+                    r.set_output_path(os.path.join(dir_temp, f'{key}.{shape_key}.png'))
+                    r.render()
+                    r.change_shapekey(shape_key, 0.0)
+                except Exception as e:
+                    print(e)
+                    pass
+
+        # object with poses
+        print(obj)
+        if hasattr(obj, 'pose') and hasattr(obj.pose, 'bones') and obj.pose.bones is not None:
+            # rotate head
+            r.poseRig(
+                obj,
+                [
+                    ('頭', 'Y', 60)
+                ]
+            )
+            r.set_output_path(os.path.join(dir_temp, f'{key}.Y60.png'))
+            r.render()
+
+            r.poseRig(
+                obj,
+                [
+                    ('頭', 'Y', -60)
+                ]
+            )
+        obj.select_set(False)
 
 
 # endregion
 
 if __name__ == '__main__':
-    import sys
-
-    test_render()
-
-    # r = Renderer()
-    # r.set_output_path(os.path.join(os.getcwd(), model_idx + '.png'))
-    # obj = [value for key, value in bpy.data.objects.items() if 'mesh' in key][0]  # TODO this should be fixed, not works for all model
-    # location = r.find_head_position(obj)
-    # bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -1, 0))
-    # bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
-    # bpy.data.objects['light'].location = mathutils.Vector(location + (0, -1.5, 0))
-    # bpy.data.lights['light'].energy = 100
-    #
-    # bpy.context.scene.render.resolution_x = 512
-    # bpy.context.scene.render.resolution_y = 512
-    # r.render()
+    test_render('samples/3d.nicovideo__10003__こんにゃく式戌亥とこver1.0/こんにゃく式戌亥とこver1.0/戌亥とこ.pmx')
