@@ -75,10 +75,7 @@ def set_addons():
 
 def render_settings():
     bpy.data.objects['light'].location = mathutils.Vector((0, -10, 0))
-    bpy.data.lights['light'].energy = 37
-    #bpy.data.lights['light'].color = (251, 206, 177)
-    #bpy.data.lights['light'].color = (247, 255, 249)
-    bpy.data.lights['light'].color = (253, 228, 200)
+    bpy.data.lights['light'].energy = 100
 
     bpy.data.objects['camera'].location = mathutils.Vector((0, -5, 0))
     bpy.data.objects['camera'].rotation_euler = mathutils.Euler((1.5708, 0, 0))
@@ -86,8 +83,8 @@ def render_settings():
     bpy.context.scene.render.image_settings.file_format = 'PNG'
 
     # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
-    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-    #bpy.context.scene.render.engine = 'CYCLES'
+    # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+    bpy.context.scene.render.engine = 'CYCLES'
 
 
 def import_model(path_input: str):
@@ -234,31 +231,32 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     os.makedirs(dir_temp, exist_ok=True)
     r = Renderer()
     r.import_model(model_path)
-    bpy.context.scene.render.resolution_x = 512
-    bpy.context.scene.render.resolution_y = 512
+    bpy.context.scene.render.resolution_x = 256
+    bpy.context.scene.render.resolution_y = 256
 
     # set camera position
     for key, obj in bpy.data.objects.items():
         if key == 'camera' or key == 'light':
             continue
         print(key, obj)
-        
+
         # turn off toon, sphere texture - prevent pink render
         bpy.data.objects[key].mmd_root.use_toon_texture = False
         bpy.data.objects[key].mmd_root.use_sphere_texture = False
-        
+
         try:
             location = r.find_head_position(obj)
             bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -1, 0))
             bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
+            bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
+            bpy.data.lights['light'].energy = 100
         except:
             pass
-    
+
     # base image # TODO check if rest pose
     r.set_output_path(os.path.join(dir_temp, 'base.png'))
     r.render()
-    
-    
+
     # find bpy object with shape_keys
     for key, obj in bpy.data.objects.items():
         # set camera position
@@ -305,15 +303,30 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
                 ]
             )
         obj.select_set(False)
-    
+
 
 # endregion
 
 if __name__ == '__main__':
-    #test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__10003__こんにゃく式戌亥とこver1.0\\こんにゃく式戌亥とこver1.0\\戌亥とこ.pmx')
-    #test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__4454__MMDモデル_2BPSO2es『ジェネ』\\MMDモデル PSO2es『ジェネ』\『ジェネ』.pmx')
-    #test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__4497__MMD　バルバトス娘_2B六\\MMD　バルバトス娘+六\\バルバトス.pmx')
-    #test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__9160__RAM\\新しいフォルダー\\Re03ZZZ.pmx')
-    #test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__9234__Handsome_2BJack\\Handsome Jack\\Handsome Jack.pmx')
-    test_render('D:\\utility\\AI\\models\\models\\3d.nicovideo__11135__Suo_Sango_v1.1\\Suo_Sango_v1.1\\周央サンゴv1.1.pmx')
-    
+    # test_render('samples/3d.nicovideo__10003__こんにゃく式戌亥とこver1.0/こんにゃく式戌亥とこver1.0/戌亥とこ.pmx')
+    from tqdm import tqdm
+    from datasets.utils.filter import find_model_in_dir
+    import sys
+
+    # dir_root = '/raid/vision/dhchoi/data/3d_models/models'
+    # dir_save_root = '/raid/vision/dhchoi/data/3d_models/test_images/'
+    dir_root = '/DATA/vision/home/dhchoi/data/3d_models/samples'
+    dir_save_root = '/DATA/vision/home/dhchoi/data/3d_models/test_images/'
+    # for idx, dirname in enumerate(tqdm(os.listdir(dir_root))):
+    idx = int(sys.argv[-1])
+    if True:
+        dirname = os.listdir(dir_root)[idx]
+        dir_model = os.path.join(dir_root, dirname)
+        result, path_model = find_model_in_dir(dir_model)
+        if result:
+            dir_save = os.path.join(dir_save_root, dirname)
+            os.makedirs(dir_save, exist_ok=True)
+            try:
+                test_render(path_model, dir_save)
+            except Exception as e:
+                print(e)
