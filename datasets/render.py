@@ -35,7 +35,32 @@ class Renderer:
         bpy.context.scene.render.image_settings.file_format = 'PNG'
 
         # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
+        # some models are broken with cycles, so use eevee
         bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+
+        # overwrite existing file
+        bpy.context.scene.render.use_overwrite = True
+
+        # Transparent background
+        bpy.context.scene.render.film_transparent = True
+        bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+
+        # compression, default=15
+        bpy.context.scene.render.image_settings.compression = 0
+
+        # render image size(changes render region)
+        bpy.context.scene.render.resolution_x = 1024
+        bpy.context.scene.render.resolution_y = 1024
+
+        # render samples (closely related to rendering time)
+        bpy.context.scene.eevee.taa_render_samples = 16  # default 64
+
+        #
+        # bpy.context.scene.eevee.use_volumetric_lights = False
+        # bpy.context.scene.eevee.volumetric_samples = 16
+
+        # misc
+        # bpy.context.scene.render.use_render_cache = True # TODO use false
 
     @staticmethod
     def set_addons():
@@ -68,6 +93,9 @@ class Renderer:
             bpy.context.scene.camera = cam
         bpy.data.objects['camera'].location = mathutils.Vector((0, 0, 0))
         bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2, 0, 0))
+        bpy.data.objects['camera'].data.type = 'ORTHO'
+        print('#############scale', bpy.data.objects['camera'].data.ortho_scale)
+        bpy.data.objects['camera'].data.ortho_scale = 0.5
 
     @staticmethod
     def init_light():
@@ -238,8 +266,6 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     os.makedirs(dir_temp, exist_ok=True)
     r = Renderer()
     r.import_model(model_path)
-    bpy.context.scene.render.resolution_x = 256
-    bpy.context.scene.render.resolution_y = 256
 
     # set camera position
     for key, obj in bpy.data.objects.items():
@@ -251,14 +277,16 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
         bpy.data.objects[key].mmd_root.use_toon_texture = False
         bpy.data.objects[key].mmd_root.use_sphere_texture = False
 
+        location = None
         try:
             location = r.find_head_position(obj)
-            bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -1, 0))
+        except:
+            pass
+        if location is not None:
+            bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
             bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
             bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
             bpy.data.lights['light'].energy = 100
-        except:
-            pass
 
     # base image # TODO check if rest pose
     r.set_output_path(os.path.join(dir_temp, 'base.png'))
@@ -310,6 +338,8 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
                 ]
             )
         obj.select_set(False)
+
+    r.exit()
 
 
 # endregion
