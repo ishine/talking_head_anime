@@ -10,6 +10,7 @@ import numpy as np
 import bpy
 import addon_utils
 import mathutils
+import pyvirtualdisplay
 
 logging.getLogger("bpy").setLevel(logging.WARNING)
 
@@ -47,9 +48,9 @@ def build_camera_light():
 
 def set_addons():
     addon_data = [
-        {'name': 'VRM_Addon_for_Blender-release',
-         'url': '',
-         'path': './addons/VRM_Addon_for_Blender-release.zip', },
+        # {'name': 'VRM_Addon_for_Blender-release',
+        #  'url': '',
+        #  'path': './addons/VRM_Addon_for_Blender-release.zip', },
         # {'name': 'mmd_tools',
         #  'url': '',
         #  'path': './addons/mmd_tools-v1.0.1.1.zip', },
@@ -83,8 +84,8 @@ def render_settings():
     bpy.context.scene.render.image_settings.file_format = 'PNG'
 
     # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
-    # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+    # bpy.context.scene.render.engine = 'CYCLES'
 
 
 def import_model(path_input: str):
@@ -105,6 +106,8 @@ class Renderer:
         build_camera_light()
         set_addons()
         render_settings()
+        self.display = pyvirtualdisplay.Display()
+        self.display.start()
 
         self.current_model = ''
 
@@ -211,6 +214,11 @@ class Renderer:
 
         return location
 
+    def exit(self):
+        self.display.stop()
+        self.clear()
+        reset_blender()
+
 
 # region test
 
@@ -315,8 +323,8 @@ if __name__ == '__main__':
 
     # dir_root = '/raid/vision/dhchoi/data/3d_models/models'
     # dir_save_root = '/raid/vision/dhchoi/data/3d_models/test_images/'
-    dir_root = '/DATA/vision/home/dhchoi/data/3d_models/samples'
-    dir_save_root = '/DATA/vision/home/dhchoi/data/3d_models/test_images/'
+    dir_root = '/DATA/vision/home/dhchoi/data/3d_models/models'
+    dir_save_root = './temp_result'
     # for idx, dirname in enumerate(tqdm(os.listdir(dir_root))):
     idx = int(sys.argv[-1])
     if True:
