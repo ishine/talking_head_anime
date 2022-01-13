@@ -2,7 +2,6 @@ import importlib
 import random
 
 from omegaconf import OmegaConf
-import parselmouth
 from torch.utils.data import Dataset
 from tqdm import tqdm, trange
 
