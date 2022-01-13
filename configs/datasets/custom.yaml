@@ -1,4 +1,7 @@
-class: datasets.custom.PlaceholderDataset
+class: datasets.custom.WituGUIDataset
+
+make_display: False
 
 path:
-  root: /raid/vision/dhchoi/data/tha
+  root: /DATA/vision/home/dhchoi/data/3d_models/
+  metadata: /DATA/vision/home/dhchoi/data/3d_models/filtered_idxs.txt
