@@ -6,25 +6,28 @@ import pickle
 import random
 
 import numpy as np
+import cv2
+import pyvirtualdisplay
 
 import bpy
 import addon_utils
 import mathutils
-import pyvirtualdisplay
 
 logging.getLogger("bpy").setLevel(logging.WARNING)
 
 
 class Renderer:
-    def __init__(self):
+    def __init__(self, make_display=False):
         self.clean_blender()
         self.set_addons()
         self.init_camera()
         self.init_light()
         self.set_configs()
 
-        self.display = pyvirtualdisplay.Display()
-        self.display.start()
+        self.make_display = make_display
+        if self.make_display:
+            self.display = pyvirtualdisplay.Display()
+            self.display.start()
 
         self.current_model = ''
 
@@ -37,6 +40,7 @@ class Renderer:
         # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
         # some models are broken with cycles, so use eevee
         bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        # bpy.context.scene.render.engine = 'CYCLES'
 
         # overwrite existing file
         bpy.context.scene.render.use_overwrite = True
@@ -53,11 +57,12 @@ class Renderer:
         bpy.context.scene.render.resolution_y = 1024
 
         # render samples (closely related to rendering time)
-        bpy.context.scene.eevee.taa_render_samples = 16  # default 64
+        bpy.context.scene.eevee.taa_render_samples = 8  # default 64
 
         #
-        # bpy.context.scene.eevee.use_volumetric_lights = False
-        # bpy.context.scene.eevee.volumetric_samples = 16
+        bpy.context.scene.eevee.use_taa_reprojection = False
+        bpy.context.scene.eevee.use_volumetric_lights = False
+        bpy.context.scene.eevee.volumetric_samples = 4
 
         # misc
         # bpy.context.scene.render.use_render_cache = True # TODO use false
@@ -94,8 +99,7 @@ class Renderer:
         bpy.data.objects['camera'].location = mathutils.Vector((0, 0, 0))
         bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2, 0, 0))
         bpy.data.objects['camera'].data.type = 'ORTHO'
-        print('#############scale', bpy.data.objects['camera'].data.ortho_scale)
-        bpy.data.objects['camera'].data.ortho_scale = 0.5
+        bpy.data.objects['camera'].data.ortho_scale = 0.5  # default=6
 
     @staticmethod
     def init_light():
@@ -108,8 +112,9 @@ class Renderer:
         bpy.data.lights['light'].energy = 100
 
     def exit(self):
-        if self.display.is_alive():
-            self.display.stop()
+        if self.make_display:
+            if self.display.is_alive():
+                self.display.stop()
         self.clean_blender()
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -128,6 +133,8 @@ class Renderer:
         if self.current_model != path_model:
             print('deleting old model and loading new model')
             self.clean_blender()
+            self.init_camera()
+            self.init_light()
             self._import_model(path_input=path_model)
 
             self.current_model = path_model
@@ -193,11 +200,18 @@ class Renderer:
         arr = np.array(pixels[:])
         print(arr.shape)
 
+        arr_image = arr.reshape(
+            bpy.context.scene.render.resolution_x,
+            bpy.context.scene.render.resolution_y, 4)
+
+        return arr_image
+
     # endgreion
 
     # region utils
 
-    def change_shapekey(self, key, value):
+    @staticmethod
+    def change_shapekey(key, value):
         # find first object which has given key
         bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
         for obj in bpy.data.objects:
@@ -230,7 +244,8 @@ class Renderer:
             pbone.rotation_euler.rotate_axis(axis, math.radians(angle))
         bpy.ops.object.mode_set(mode='OBJECT')
 
-    def find_head_position(self, obj, head_key='頭'):
+    @staticmethod
+    def find_head_position(obj, head_key='頭'):
         vgs = defaultdict(list)
         for v in obj.data.vertices:
             for g in v.groups:
@@ -243,6 +258,26 @@ class Renderer:
         location = np.mean(vs_, axis=0)
 
         return location
+
+    def set_camera_position(self):
+        for key, obj in bpy.data.objects.items():
+            if key == 'camera' or key == 'light':
+                continue
+            print(key, obj)
+
+            # turn off toon, sphere texture - prevent pink render # TODO move this away
+            bpy.data.objects[key].mmd_root.use_toon_texture = False
+            bpy.data.objects[key].mmd_root.use_sphere_texture = False
+
+            location = None
+            try:
+                location = self.find_head_position(obj)
+            except:
+                pass
+            if location is not None:
+                bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
+                bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
+                bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
 
     # endregion
 
@@ -268,25 +303,6 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     r.import_model(model_path)
 
     # set camera position
-    for key, obj in bpy.data.objects.items():
-        if key == 'camera' or key == 'light':
-            continue
-        print(key, obj)
-
-        # turn off toon, sphere texture - prevent pink render
-        bpy.data.objects[key].mmd_root.use_toon_texture = False
-        bpy.data.objects[key].mmd_root.use_sphere_texture = False
-
-        location = None
-        try:
-            location = r.find_head_position(obj)
-        except:
-            pass
-        if location is not None:
-            bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
-            bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
-            bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
-            bpy.data.lights['light'].energy = 100
 
     # base image # TODO check if rest pose
     r.set_output_path(os.path.join(dir_temp, 'base.png'))
@@ -341,29 +357,4 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
 
     r.exit()
 
-
 # endregion
-
-if __name__ == '__main__':
-    # test_render('samples/3d.nicovideo__10003__こんにゃく式戌亥とこver1.0/こんにゃく式戌亥とこver1.0/戌亥とこ.pmx')
-    from tqdm import tqdm
-    from datasets.utils.filter import find_model_in_dir
-    import sys
-
-    # dir_root = '/raid/vision/dhchoi/data/3d_models/models'
-    # dir_save_root = '/raid/vision/dhchoi/data/3d_models/test_images/'
-    dir_root = '/DATA/vision/home/dhchoi/data/3d_models/models'
-    dir_save_root = './temp_result'
-    # for idx, dirname in enumerate(tqdm(os.listdir(dir_root))):
-    idx = int(sys.argv[-1])
-    if True:
-        dirname = os.listdir(dir_root)[idx]
-        dir_model = os.path.join(dir_root, dirname)
-        result, path_model = find_model_in_dir(dir_model)
-        if result:
-            dir_save = os.path.join(dir_save_root, dirname)
-            os.makedirs(dir_save, exist_ok=True)
-            try:
-                test_render(path_model, dir_save)
-            except Exception as e:
-                print(e)

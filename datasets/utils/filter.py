@@ -166,7 +166,7 @@ def get_metadata(path_model: str):
         # job finished
         obj.select_set(False)
 
-    r.clear()
+    r.clean_blender()
     return data
 
 
