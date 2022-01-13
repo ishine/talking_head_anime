@@ -83,6 +83,21 @@ class Trainer(BaseTrainer):
 
     # endregion
 
+    def awesome_logging(self, data, mode):
+        tensorboard = self.logger
+        for key, value in data.items():
+            if isinstance(value, torch.Tensor):
+                value = value.squeeze()
+                if value.ndim == 0:
+                    # tensorboard.add_scalar(f'{mode}/{key}', value, self.global_step)
+                    tensorboard.add_scalar(f'{mode}/{key}', value, global_step=self.global_step)
+                elif value.ndim == 3:
+                    if value.shape[0] == 3:  # if 3-dim image
+                        tensorboard.add_image(f'{mode}/{key}', value, self.global_step, dataformats='CHW')
+                    else:  # B x H x W shaped images
+                        value_numpy = value[0].detach().cpu().numpy()  # select one in batch
+                        tensorboard.add_image(f'{mode}/{key}', value_numpy, self.global_step, dataformats='HWC')
+
 
 @torch.no_grad()
 def inference():
