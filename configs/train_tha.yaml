@@ -1,15 +1,13 @@
 logging:
-  log_dir: "/raid/vision/dhchoi/log/tha"
+  log_dir: "./logs/"
   seed: "1"
   nepochs: 100
-  device: cuda
+  device: cpu
   save_optimizer_state: False
 
-  freq:
-    log: 100
-    save: 1 # epoch
+  freq: 100
 
-  savefiles: [
+  save_files: [
       '*.py',
       '*.sh',
       'configs/*.*',
@@ -37,7 +35,7 @@ models:
   FaceMorpher:
     class: models.tha1.FaceMorpher
 
-    optims:
+    optim:
       class: torch.optim.Adam
       kwargs:
         lr: 1e-4

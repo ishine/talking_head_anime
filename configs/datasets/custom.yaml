@@ -1,4 +1,4 @@
-class: datasets.custom.CustomDataset
+class: datasets.custom.PlaceholderDataset
 
 path:
   root: /raid/vision/dhchoi/data/tha

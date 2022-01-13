@@ -1,25 +1,23 @@
 import os
+import random
+
+import torch
 
 from datasets.base import BaseDataset
 
 
-class CustomDataset(BaseDataset):
+class PlaceholderDataset(BaseDataset):
     def __init__(self, conf):
-        super(CustomDataset, self).__init__(conf)
+        super(PlaceholderDataset, self).__init__(conf)
 
-        self.data = self.build_data()
-
-        self.sample_data = {
-            'model_path': './4490707391186690073.vrm'
-        }
-
-    def build_data(self):
-        path_root = self.conf.path['root']
-        model_dirs = sorted([
-            os.path.join(path_root, file) for file in os.listdir(path_root)
-        ])
+    def __len__(self):
+        return 10000
 
     def getitem(self, idx):
-        data = self.sample_data
-        model_path = data['model_path']
+        return_data = {}
 
+        return_data['img_base'] = torch.randn((4, 256, 256))
+        return_data['img_target'] = torch.randn((4, 256, 256))
+        return_data['pose'] = torch.Tensor([random.random(), random.random(), random.random()])
+
+        return return_data

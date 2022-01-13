@@ -81,10 +81,19 @@ class FaceMorpher(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, a0, a1):
-        # a0.shape: B x C(4) x H(256) x W(256)
-        # a1.shape: B x C(3) x H(256) x W(256)
+    def forward(self, input_image, pose):
+        """
 
+        Args:
+            input_image: input image. torch.Tensor of shape B x C(4) x H x W
+            pose: pose vector. torch.Tensor of shape B x n(3)
+
+        Returns:
+
+        """
+        B, n = pose.shape
+        a0 = input_image
+        a1 = pose.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])
         a2 = torch.cat((a0, a1), dim=1)  # channel-wise concat
 
         b = a2
