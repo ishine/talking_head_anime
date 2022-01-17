@@ -1,23 +1,21 @@
 import os
 import random
+import subprocess
+import time
 
+import cv2
 import torch
 
 from datasets.base import BaseDataset
-from datasets.render import Renderer
-from datasets.utils.filter import find_model_in_dir
 
 
-class WituGUIDataset(BaseDataset):
+class SubprocessDataset(BaseDataset):
     def __init__(self, conf):
-        super(WituGUIDataset, self).__init__(conf)
-        self.renderer = Renderer(make_display=self.conf.make_display)
-
+        super(SubprocessDataset, self).__init__(conf)
         with open(self.conf.path['metadata'], 'r', encoding='utf-8') as f:
             valid_models = f.readlines()
 
-        self.data = [os.path.join(self.conf.path['root'], line.strip())
-                     for line in valid_models]
+        self.data = [os.path.join(self.conf.path['root'], line.strip()) for line in valid_models]
 
     def __len__(self):
         return len(self.data)
@@ -26,41 +24,46 @@ class WituGUIDataset(BaseDataset):
     def np_img_to_torch(img):
         return torch.from_numpy(img).permute((2, 0, 1)) / 255.
 
-    def getitem(self, idx):
+    def __getitem__(self, idx):
         return_data = {}
 
-        dir_model = self.data[idx]
-        _, path_model = find_model_in_dir(dir_model)
-        self.renderer.import_model(path_model)
-        self.renderer.set_camera_position()
-
-        # self.renderer.augmentation()
-
-        img_base_np = self.renderer.render_to_numpy_array()
-
-        pose_mouth = random.random()
-        pose_left_eye = random.random()
-        pose_right_eye = random.random()
-
         key_mouth = 'あ'
+        val_mouth = random.random()
+        val_mouth = float(f'{val_mouth:.04f}')
+
         key_left_eye = 'ウィンク'
+        val_left_eye = random.random()
+        val_left_eye = float(f'{val_left_eye:.04f}')
+
         key_right_eye = 'ウィンク右'
+        val_right_eye = random.random()
+        val_right_eye = float(f'{val_right_eye:.04f}')
 
-        # pose_head_x = (random.random() - 0.5) * 2 * 45 # [-45, 45], in degrees
-        # pose_head_y = (random.random() - 0.5) * 2 * 45  # [-45, 45], in degrees
-        # pose_head_z = (random.random() - 0.5) * 2 * 45  # [-45, 45], in degrees
+        return_data['pose'] = torch.FloatTensor([val_mouth, val_left_eye, val_right_eye])
 
-        self.renderer.change_shapekey(key_mouth, pose_mouth)
-        self.renderer.change_shapekey(key_left_eye, pose_left_eye)
-        self.renderer.change_shapekey(key_right_eye, pose_right_eye)
+        commands = [
+            'python', '-m', 'datasets.script2',
+            f'{self.conf.path["metadata"]}', f'{idx}',
+            f'{key_mouth}___{val_mouth}',
+            f'{key_left_eye}___{val_left_eye}',
+            f'{key_right_eye}___{val_right_eye}',
+        ]
+        command = ' '.join(commands)
+        subprocess.call(command, shell=True, stdout=open(os.devnull, 'wb'))
 
-        img_target = self.renderer.render_to_numpy_array()
+        tmp_dir = self.conf.path['tmp']
 
-        return_data['img_base'] = self.np_img_to_torch(img_base_np)
-        return_data['pose'] = torch.Tensor([pose_mouth, pose_left_eye, pose_right_eye])
+        tmp_path = os.path.join(tmp_dir, f'{idx}_{val_mouth}_{val_left_eye}_{val_right_eye}.png')
+        while not os.path.exists(tmp_path):
+            time.sleep(0.5)
+            print('waiting', tmp_path)
+        img_target = cv2.imread(tmp_path, cv2.IMREAD_UNCHANGED)
+        os.remove(tmp_path)
         return_data['img_target'] = self.np_img_to_torch(img_target)
 
-        self.renderer.clean_blender()
+        tmp_path = os.path.join(tmp_dir, f'{idx}.png')
+        img_base_np = cv2.imread(tmp_path, cv2.IMREAD_UNCHANGED)
+        return_data['img_base'] = self.np_img_to_torch(img_base_np)
 
         return return_data
 
@@ -80,3 +83,25 @@ class PlaceholderDataset(BaseDataset):
         return_data['pose'] = torch.Tensor([random.random(), random.random(), random.random()])
 
         return return_data
+
+
+if __name__ == '__main__':
+    from omegaconf import OmegaConf
+    from torch.utils.data import DataLoader
+    from utils.util import cycle
+
+    import sys
+
+    code_root = '/root/talking_head_anime'
+    os.chdir(code_root)
+    sys.path.append(os.getcwd())
+
+    conf = OmegaConf.load('configs/datasets/custom.yaml')
+    d = SubprocessDataset(conf)
+    loader = DataLoader(d, batch_size=4, num_workers=4)
+    it = cycle(loader)
+
+    from tqdm import trange
+
+    for i in trange(20):
+        item = next(it)

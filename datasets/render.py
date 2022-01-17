@@ -4,16 +4,18 @@ import math
 import os
 import pickle
 import random
+import sys
+import time
 
-import numpy as np
 import cv2
+import numpy as np
 import pyvirtualdisplay
 
 import bpy
 import addon_utils
 import mathutils
 
-logging.getLogger("bpy").setLevel(logging.WARNING)
+from utils.util import suppress_stdout
 
 
 class Renderer:
@@ -26,7 +28,7 @@ class Renderer:
 
         self.make_display = make_display
         if self.make_display:
-            self.display = pyvirtualdisplay.Display()
+            self.display = pyvirtualdisplay.Display(size=(1, 1))
             self.display.start()
 
         self.current_model = ''
@@ -39,8 +41,8 @@ class Renderer:
 
         # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
         # some models are broken with cycles, so use eevee
-        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-        # bpy.context.scene.render.engine = 'CYCLES'
+        # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        bpy.context.scene.render.engine = 'CYCLES'
 
         # overwrite existing file
         bpy.context.scene.render.use_overwrite = True
@@ -64,19 +66,27 @@ class Renderer:
         bpy.context.scene.eevee.use_volumetric_lights = False
         bpy.context.scene.eevee.volumetric_samples = 4
 
+        # cycles settings
+        # bpy.context.scene.cycles.device = 'GPU'
+        bpy.context.scene.cycles.samples = 64
+
         # misc
         # bpy.context.scene.render.use_render_cache = True # TODO use false
 
     @staticmethod
+    @suppress_stdout
     def set_addons():
+        logging.disable(logging.CRITICAL)
+
         addon_data = [
             {'name': 'cats-blender-plugin-master',
              'url': '',
              'path': './addons/cats-blender-plugin-master.zip', },
+            # {'name': 'mmd_tools',
+            #  'path': './addons/mmd_tools-v2.0.1.zip', }
         ]
         for data in addon_data:
             addon_name = data['name']
-            print(addon_name)
 
             # check addon is installed
             installed_module_names = [module.__name__ for module in addon_utils.modules()]
@@ -88,6 +98,8 @@ class Renderer:
             is_loaded = addon_utils.check(addon_name)
             if not is_loaded[0] and not is_loaded[1]:
                 addon_utils.enable(addon_name)
+
+        logging.disable(logging.NOTSET)
 
     @staticmethod
     def init_camera():
@@ -115,23 +127,29 @@ class Renderer:
         if self.make_display:
             if self.display.is_alive():
                 self.display.stop()
+        # self.purge()
         self.clean_blender()
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
     # endgreion
 
     @staticmethod
+    @suppress_stdout
     def _import_model(path_input: str):
+        logging.disable(logging.CRITICAL)
         file_extension = path_input.rsplit('.', 1)[-1].lower()
-        if file_extension == 'pmx' or file_extension == 'pmd' or file_extension == 'vrm':
+        if file_extension == 'pmx' or file_extension == 'pmd':
+            bpy.ops.cats_importer.import_any_model(filepath=path_input)
+            # bpy.ops.mmd_tools.import_model(filepath=path_input)
+        elif file_extension == 'vrm':
             bpy.ops.cats_importer.import_any_model(filepath=path_input)
         else:
             raise ValueError(f'file extension {file_extension} not supported')
+        logging.disable(logging.NOTSET)
 
     def import_model(self, path_model: str):
         path_model = os.path.abspath(path_model)
         if self.current_model != path_model:
-            print('deleting old model and loading new model')
             self.clean_blender()
             self.init_camera()
             self.init_light()
@@ -139,8 +157,7 @@ class Renderer:
 
             self.current_model = path_model
 
-    @staticmethod
-    def clean_blender():
+    def clean_blender(self):
         for i in range(10):
             for attribute in dir(bpy.data):
                 try:
@@ -152,14 +169,42 @@ class Renderer:
                 except Exception as e:
                     pass
 
-    # region render
-
-    def render_complex(self, path_output, parameters=None):
-        self.set_output_path(path_output)
-
-        self.render()
+        self.current_model = ''
 
     @staticmethod
+    def purge():
+        orphan_ob = [o for o in bpy.data.objects if not o.users]
+        while orphan_ob:
+            bpy.data.objects.remove(orphan_ob.pop())
+
+        orphan_mesh = [m for m in bpy.data.meshes if not m.users]
+        while orphan_mesh:
+            bpy.data.meshes.remove(orphan_mesh.pop())
+
+        orphan_mat = [mat for mat in bpy.data.materials if not mat.users]
+        while orphan_mat:
+            bpy.data.materials.remove(orphan_mat.pop())
+
+        def purge_node_groups():
+            orphan_node_group = [g for g in bpy.data.node_groups if not g.users]
+
+            while orphan_node_group:
+                bpy.data.node_groups.remove(orphan_node_group.pop())
+            if [g for g in bpy.data.node_groups if not g.users]:
+                purge_node_groups()
+
+        purge_node_groups()
+
+        orphan_texture = [t for t in bpy.data.textures if not t.users]
+        while orphan_texture:
+            bpy.data.textures.remove(orphan_texture.pop())
+
+        orphan_images = [i for i in bpy.data.images if not i.users]
+        while orphan_images:
+            bpy.data.images.remove(orphan_images.pop())
+
+    @staticmethod
+    @suppress_stdout
     def render():
         bpy.ops.render.render(write_still=True)
 
@@ -200,11 +245,12 @@ class Renderer:
         arr = np.array(pixels[:])
         print(arr.shape)
 
-        arr_image = arr.reshape(
-            bpy.context.scene.render.resolution_x,
-            bpy.context.scene.render.resolution_y, 4)
-
-        return arr_image
+        # arr_image = arr.reshape(
+        #     bpy.context.scene.render.resolution_x,
+        #     bpy.context.scene.render.resolution_y, 4)
+        #
+        # return arr_image
+        return arr
 
     # endgreion
 
@@ -221,7 +267,6 @@ class Renderer:
                     bpy.context.view_layer.objects.active = obj
                     break
             obj.select_set(False)
-        print(bpy.context.object)
 
         # change value
         bpy.context.object.data.shape_keys.key_blocks[key].value = value
@@ -263,11 +308,21 @@ class Renderer:
         for key, obj in bpy.data.objects.items():
             if key == 'camera' or key == 'light':
                 continue
-            print(key, obj)
 
-            # turn off toon, sphere texture - prevent pink render # TODO move this away
-            bpy.data.objects[key].mmd_root.use_toon_texture = False
-            bpy.data.objects[key].mmd_root.use_sphere_texture = False
+            # turn off toon, sphere texture - prevent pink render
+            if hasattr(obj, 'mmd_root'):
+                if hasattr(obj.mmd_root, 'use_toon_texture'):
+                    try:
+                        pass
+                        # bpy.data.objects[key].mmd_root.use_toon_texture = False
+                    except:
+                        pass
+                if hasattr(obj.mmd_root, 'use_sphere_texture'):
+                    try:
+                        pass
+                        # bpy.data.objects[key].mmd_root.use_sphere_texture = False
+                    except:
+                        pass
 
             location = None
             try:
@@ -296,8 +351,6 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     """
     model_path = os.path.abspath(model_path)
     dir_temp = os.path.abspath(dir_temp)
-    print(model_path)
-    print(dir_temp)
     os.makedirs(dir_temp, exist_ok=True)
     r = Renderer()
     r.import_model(model_path)
