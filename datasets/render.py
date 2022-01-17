@@ -265,11 +265,12 @@ class Renderer:
             if hasattr(obj.data, 'shape_keys'):
                 if key in obj.data.shape_keys.key_blocks:
                     bpy.context.view_layer.objects.active = obj
+                    obj.data.shape_keys.key_blocks[key].value = value
                     break
             obj.select_set(False)
 
         # change value
-        bpy.context.object.data.shape_keys.key_blocks[key].value = value
+        # bpy.context.object.data.shape_keys.key_blocks[key].value = value
 
     @staticmethod
     def poseRig(ob, poseTable):
@@ -304,7 +305,10 @@ class Renderer:
 
         return location
 
+    @suppress_stdout
     def set_camera_position(self):
+        logging.disable(logging.CRITICAL)
+
         for key, obj in bpy.data.objects.items():
             if key == 'camera' or key == 'light':
                 continue
@@ -313,14 +317,14 @@ class Renderer:
             if hasattr(obj, 'mmd_root'):
                 if hasattr(obj.mmd_root, 'use_toon_texture'):
                     try:
-                        pass
                         # bpy.data.objects[key].mmd_root.use_toon_texture = False
+                        obj.mmd_root.use_toon_texture = False
                     except:
                         pass
                 if hasattr(obj.mmd_root, 'use_sphere_texture'):
                     try:
-                        pass
                         # bpy.data.objects[key].mmd_root.use_sphere_texture = False
+                        obj.mmd_root.use_sphere_texture = False
                     except:
                         pass
 
@@ -334,6 +338,7 @@ class Renderer:
                 bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
                 bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
 
+        logging.disable(logging.NOTSET)
     # endregion
 
 

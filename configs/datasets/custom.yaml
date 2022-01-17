@@ -1,4 +1,4 @@
-class: datasets.custom.WituGUIDataset
+class: datasets.custom.SubprocessDataset
 
 make_display: True
 

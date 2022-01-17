@@ -98,6 +98,11 @@ class Trainer(BaseTrainer):
                         value_numpy = value[0].detach().cpu().numpy()  # select one in batch
                         tensorboard.add_image(f'{mode}/{key}', value_numpy, self.global_step, dataformats='HWC')
 
+                elif value.ndim == 4:
+                    small_batch = value[:4]
+                    small_batch = torch.cat([small_batch[i] for i in range(small_batch.shape[0])], dim=-1)
+                    tensorboard.add_image(f'{mode}/{key}', small_batch, self.global_step, dataformats='CHW')
+
 
 @torch.no_grad()
 def inference():

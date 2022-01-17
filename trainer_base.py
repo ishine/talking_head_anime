@@ -75,7 +75,7 @@ class BaseTrainer:
         losses_eval = {}
 
         for step in pbar_step:
-            calc_log = self.global_step % self.conf.logging.freq
+            calc_log = self.global_step % self.conf.logging.freq == 0
             train_data = next(self.iterators['train'])
             loss_train, log_train = self.train_step(train_data, calc_log=calc_log)
             for key, value in loss_train.items():

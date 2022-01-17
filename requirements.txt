@@ -3,3 +3,7 @@ rarfile
 requests
 future-fstrings
 bpy==2.91a0
+omegaconf
+tensorboard
+opencv-python
+pyvirtualdisplay
