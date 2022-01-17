@@ -1,9 +1,19 @@
+import contextlib
 import importlib
 import os
 import shutil
 
 import torch
 from torch.utils.data import DataLoader
+
+
+def suppress_stdout(func):
+    def wrapper(*a, **ka):
+        with open(os.devnull, 'w') as devnull:
+            with contextlib.redirect_stdout(devnull):
+                return func(*a, **ka)
+
+    return wrapper
 
 
 def save_files(path_save, savefiles):
@@ -62,25 +72,25 @@ def build_models_from_config(conf, build_optims=True):
     models = {}
     optims = {}
 
-    for key, conf_model in conf.items():
-        module, cls = conf_model['class'].rsplit(',', 1)
+    for model_key, model_conf in conf.items():
+        module, cls = model_conf['class'].rsplit('.', 1)
         M = getattr(importlib.import_module(module, package=None), cls)
-        m = M(conf_model)
+        m = M(model_conf)
 
-        if 'ckpt' in conf_model.keys() and os.path.isfile(conf_model['ckpt']):
-            m = load_checkpoint(m, conf_model['ckpt'])
+        if 'ckpt' in model_conf.keys() and os.path.isfile(model_conf['ckpt']):
+            m = load_checkpoint(m, model_conf['ckpt'])
 
-        models[key] = m
+        models[model_key] = m
 
-        if build_optims and 'optim' in conf_model.keys():
-            conf_optim = conf_model['optim']
+        if build_optims and 'optim' in model_conf.keys():
+            conf_optim = model_conf['optim']
             optim_module, optim_cls = conf_optim['class'].rsplit(".", 1)
             O = getattr(importlib.import_module(optim_module, package=None), optim_cls)
-            o = O([p for p in models[key].parameters() if p.requires_grad],
+            o = O([p for p in models[model_key].parameters() if p.requires_grad],
                   **conf_optim.kwargs)
 
             if 'ckpt' in conf_optim.keys() and os.path.isfile(conf_optim['ckpt']):
                 o = load_checkpoint(o, conf_optim['ckpt'])
-            optims[key] = o
+            optims[model_key] = o
 
     return models, optims

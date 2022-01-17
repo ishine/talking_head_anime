@@ -6,6 +6,7 @@ import pyvirtualdisplay
 
 from datasets.render import Renderer
 from datasets.utils.filter import find_model_in_dir
+from utils.util import suppress_stdout
 
 
 def test_render(model_path: str, dir_temp: str = './result_temp'):
@@ -82,38 +83,8 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     r.exit()
 
 
-import contextlib
-
-class DummyFile(object):
-    def write(self, x): pass
-
-@contextlib.contextmanager
-def nostdout():
-    save_stdout = sys.stdout
-    sys.stdout = DummyFile()
-    yield
-    sys.stdout = save_stdout
-
-from contextlib import contextmanager
-import sys, os
-
-@contextmanager
-def suppress_stdout():
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        # sys.stdout = devnull
-        sys.stdout = sys.stderr
-        try:
-            yield
-        finally:
-            sys.stdout = old_stdout
-
-
-if __name__ == '__main__':
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
-
+@suppress_stdout
+def main():
     code_root = '/root/talking_head_anime'
     os.chdir(code_root)
     sys.path.append(os.getcwd())
@@ -128,8 +99,7 @@ if __name__ == '__main__':
     _, model_path = find_model_in_dir(model_dir)
 
     # with pyvirtualdisplay.Display(visible=False, size=(1,1)) as disp:
-    # if True:
-    with suppress_stdout():
+    if True:
         r = Renderer(make_display=False)
         r.set_addons()
         r.import_model(model_path)
@@ -155,3 +125,7 @@ if __name__ == '__main__':
     # r.set_output_path(temp_path)
     # r.render()
     r.exit()
+
+
+if __name__ == '__main__':
+    main()

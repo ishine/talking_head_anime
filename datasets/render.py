@@ -1,5 +1,4 @@
 from collections import defaultdict
-import contextlib
 import logging
 import math
 import os
@@ -16,16 +15,7 @@ import bpy
 import addon_utils
 import mathutils
 
-logging.getLogger("bpy").setLevel(logging.WARNING)
-
-
-def suppress_stdout(func):
-    def wrapper(*a, **ka):
-        with open(os.devnull, 'w') as devnull:
-            with contextlib.redirect_stdout(devnull):
-                return func(*a, **ka)
-
-    return wrapper
+from utils.util import suppress_stdout
 
 
 class Renderer:

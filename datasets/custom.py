@@ -1,15 +1,11 @@
 import os
 import random
 import subprocess
-import time
 
-import bpy
 import cv2
 import torch
 
 from datasets.base import BaseDataset
-from datasets.render import Renderer
-from datasets.utils.filter import find_model_in_dir
 
 
 class SubprocessDataset(BaseDataset):
@@ -21,33 +17,24 @@ class SubprocessDataset(BaseDataset):
         self.data = [os.path.join(self.conf.path['root'], line.strip()) for line in valid_models]
 
     def __len__(self):
-        return 100
+        return len(self.data)
 
     @staticmethod
     def np_img_to_torch(img):
         return torch.from_numpy(img).permute((2, 0, 1)) / 255.
 
     def __getitem__(self, idx):
-        import logging
-        logger = logging.getLogger()
-        logger.setLevel(logging.WARNING)
-
-        command = f"python -m datasets.script2 /raid/vision/dhchoi/data/3d_models/filtered_idxs.txt {idx}"
+        commands = [
+            'python', '-m', 'datasets.script2',
+            f'{self.conf.path["metadata"]}',
+            f'{idx}',
+        ]
+        command = ' '.join(commands)
         subprocess.call(command, shell=True, stdout=open(os.devnull, 'wb'))
 
         return_data = {}
-        #         dir_model = self.data[idx]
-        #         _, path_model = find_model_in_dir(dir_model)
 
-        #         blender_commands = [
-        #             'python -m datasets.script2',
-        #             self.conf.path['metadata'], f'{idx}',
-        #             f'{key_mouth}___{pose_mouth}',
-        #             f'{key_left_eye}___{pose_left_eye}',
-        #             f'{key_right_eye}___{pose_right_eye}',
-        #         ]
-
-        tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
+        tmp_dir = self.conf.path['tmp']
         tmp_path = os.path.join(tmp_dir, f'{idx}.png')
         while not os.path.exists(tmp_path):
             time.sleep(0.5)
@@ -82,7 +69,6 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from utils.util import cycle
 
-    import os
     import sys
 
     code_root = '/root/talking_head_anime'

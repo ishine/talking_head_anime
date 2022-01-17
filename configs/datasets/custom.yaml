@@ -1,7 +1,12 @@
 class: datasets.custom.WituGUIDataset
 
-make_display: False
+make_display: True
 
 path:
-  root: /DATA/vision/home/dhchoi/data/3d_models/
-  metadata: /DATA/vision/home/dhchoi/data/3d_models/filtered_idxs.txt
+  blender: /root/blender/blender-2.91.2-linux64/blender
+#  root: /DATA/vision/home/dhchoi/data/3d_models/
+  root: /raid/vision/dhchoi/data/3d_models/
+#  metadata: /DATA/vision/home/dhchoi/data/3d_models/filtered_idxs.txt
+  metadata: /raid/vision/dhchoi/data/3d_models/filtered_idxs.txt
+
+  tmp: /raid/vision/dhchoi/data/3d_models/tmp
