@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+import time
 
 import numpy as np
 import cv2
@@ -26,7 +27,7 @@ class Renderer:
 
         self.make_display = make_display
         if self.make_display:
-            self.display = pyvirtualdisplay.Display()
+            self.display = pyvirtualdisplay.Display(size=(1, 1))
             self.display.start()
 
         self.current_model = ''
@@ -39,8 +40,8 @@ class Renderer:
 
         # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
         # some models are broken with cycles, so use eevee
-        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-        # bpy.context.scene.render.engine = 'CYCLES'
+        # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        bpy.context.scene.render.engine = 'CYCLES'
 
         # overwrite existing file
         bpy.context.scene.render.use_overwrite = True
@@ -64,6 +65,10 @@ class Renderer:
         bpy.context.scene.eevee.use_volumetric_lights = False
         bpy.context.scene.eevee.volumetric_samples = 4
 
+        # cycles settings
+        # bpy.context.scene.cycles.device = 'GPU'
+        bpy.context.scene.cycles.samples = 64
+
         # misc
         # bpy.context.scene.render.use_render_cache = True # TODO use false
 
@@ -73,6 +78,8 @@ class Renderer:
             {'name': 'cats-blender-plugin-master',
              'url': '',
              'path': './addons/cats-blender-plugin-master.zip', },
+            # {'name': 'mmd_tools',
+            #  'path': './addons/mmd_tools-v2.0.1.zip', }
         ]
         for data in addon_data:
             addon_name = data['name']
@@ -115,6 +122,7 @@ class Renderer:
         if self.make_display:
             if self.display.is_alive():
                 self.display.stop()
+        # self.purge()
         self.clean_blender()
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -123,7 +131,11 @@ class Renderer:
     @staticmethod
     def _import_model(path_input: str):
         file_extension = path_input.rsplit('.', 1)[-1].lower()
-        if file_extension == 'pmx' or file_extension == 'pmd' or file_extension == 'vrm':
+        if file_extension == 'pmx' or file_extension == 'pmd':
+            bpy.ops.cats_importer.import_any_model(filepath=path_input)
+            # bpy.ops.mmd_tools.import_model(filepath=path_input)
+        elif file_extension == 'vrm':
+            raise NotImplementedError
             bpy.ops.cats_importer.import_any_model(filepath=path_input)
         else:
             raise ValueError(f'file extension {file_extension} not supported')
@@ -139,8 +151,7 @@ class Renderer:
 
             self.current_model = path_model
 
-    @staticmethod
-    def clean_blender():
+    def clean_blender(self):
         for i in range(10):
             for attribute in dir(bpy.data):
                 try:
@@ -152,12 +163,39 @@ class Renderer:
                 except Exception as e:
                     pass
 
-    # region render
+        self.current_model = ''
 
-    def render_complex(self, path_output, parameters=None):
-        self.set_output_path(path_output)
+    @staticmethod
+    def purge():
+        orphan_ob = [o for o in bpy.data.objects if not o.users]
+        while orphan_ob:
+            bpy.data.objects.remove(orphan_ob.pop())
 
-        self.render()
+        orphan_mesh = [m for m in bpy.data.meshes if not m.users]
+        while orphan_mesh:
+            bpy.data.meshes.remove(orphan_mesh.pop())
+
+        orphan_mat = [mat for mat in bpy.data.materials if not mat.users]
+        while orphan_mat:
+            bpy.data.materials.remove(orphan_mat.pop())
+
+        def purge_node_groups():
+            orphan_node_group = [g for g in bpy.data.node_groups if not g.users]
+
+            while orphan_node_group:
+                bpy.data.node_groups.remove(orphan_node_group.pop())
+            if [g for g in bpy.data.node_groups if not g.users]:
+                purge_node_groups()
+
+        purge_node_groups()
+
+        orphan_texture = [t for t in bpy.data.textures if not t.users]
+        while orphan_texture:
+            bpy.data.textures.remove(orphan_texture.pop())
+
+        orphan_images = [i for i in bpy.data.images if not i.users]
+        while orphan_images:
+            bpy.data.images.remove(orphan_images.pop())
 
     @staticmethod
     def render():
@@ -200,11 +238,12 @@ class Renderer:
         arr = np.array(pixels[:])
         print(arr.shape)
 
-        arr_image = arr.reshape(
-            bpy.context.scene.render.resolution_x,
-            bpy.context.scene.render.resolution_y, 4)
-
-        return arr_image
+        # arr_image = arr.reshape(
+        #     bpy.context.scene.render.resolution_x,
+        #     bpy.context.scene.render.resolution_y, 4)
+        #
+        # return arr_image
+        return arr
 
     # endgreion
 
@@ -265,9 +304,20 @@ class Renderer:
                 continue
             print(key, obj)
 
-            # turn off toon, sphere texture - prevent pink render # TODO move this away
-            bpy.data.objects[key].mmd_root.use_toon_texture = False
-            bpy.data.objects[key].mmd_root.use_sphere_texture = False
+            # turn off toon, sphere texture - prevent pink render
+            if hasattr(obj, 'mmd_root'):
+                if hasattr(obj.mmd_root, 'use_toon_texture'):
+                    try:
+                        pass
+                        # bpy.data.objects[key].mmd_root.use_toon_texture = False
+                    except:
+                        pass
+                if hasattr(obj.mmd_root, 'use_sphere_texture'):
+                    try:
+                        pass
+                        # bpy.data.objects[key].mmd_root.use_sphere_texture = False
+                    except:
+                        pass
 
             location = None
             try:
@@ -357,4 +407,44 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
 
     r.exit()
 
+
 # endregion
+
+
+if __name__ == '__main__':
+    import sys
+    import os
+
+    code_root = '/root/talking_head_anime'
+    os.chdir(code_root)
+    sys.path.append(os.getcwd())
+
+    argv = sys.argv
+    print(argv)
+    argv = argv[argv.index("--") + 1:]  # get all args after "--"
+
+    model_path = argv[0]
+    internal_idx = argv[1]
+
+    r = Renderer(make_display=True)
+    r.import_model(model_path)
+    r.set_camera_position()
+
+    tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
+    temp_path = os.path.join(tmp_dir, f'{internal_idx}.png')
+    if not os.path.exists(temp_path):
+        r.set_output_path(temp_path)
+        r.render()
+
+    temp_path = os.path.join(tmp_dir, f'{internal_idx}')
+    for item in argv[2:]:
+        key, value = item.strip().split('___')
+        value = float(value)
+        r.change_shapekey(key, value)
+        temp_path += f'_{value}'
+
+    # temp_path = sys.argv[-1]
+    temp_path += '.png'
+    r.set_output_path(temp_path)
+    r.render()
+    r.exit()

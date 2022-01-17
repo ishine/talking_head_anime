@@ -1,6 +1,10 @@
 import os
 import random
+import subprocess
+import time
 
+import bpy
+import cv2
 import torch
 
 from datasets.base import BaseDataset
@@ -8,59 +12,49 @@ from datasets.render import Renderer
 from datasets.utils.filter import find_model_in_dir
 
 
-class WituGUIDataset(BaseDataset):
+class SubprocessDataset(BaseDataset):
     def __init__(self, conf):
-        super(WituGUIDataset, self).__init__(conf)
-        self.renderer = Renderer(make_display=self.conf.make_display)
-
+        super(SubprocessDataset, self).__init__(conf)
         with open(self.conf.path['metadata'], 'r', encoding='utf-8') as f:
             valid_models = f.readlines()
 
-        self.data = [os.path.join(self.conf.path['root'], line.strip())
-                     for line in valid_models]
+        self.data = [os.path.join(self.conf.path['root'], line.strip()) for line in valid_models]
 
     def __len__(self):
-        return len(self.data)
+        return 100
 
     @staticmethod
     def np_img_to_torch(img):
         return torch.from_numpy(img).permute((2, 0, 1)) / 255.
 
-    def getitem(self, idx):
+    def __getitem__(self, idx):
+        import logging
+        logger = logging.getLogger()
+        logger.setLevel(logging.WARNING)
+
+        command = f"python -m datasets.script2 /raid/vision/dhchoi/data/3d_models/filtered_idxs.txt {idx}"
+        subprocess.call(command, shell=True, stdout=open(os.devnull, 'wb'))
+
         return_data = {}
+        #         dir_model = self.data[idx]
+        #         _, path_model = find_model_in_dir(dir_model)
 
-        dir_model = self.data[idx]
-        _, path_model = find_model_in_dir(dir_model)
-        self.renderer.import_model(path_model)
-        self.renderer.set_camera_position()
+        #         blender_commands = [
+        #             'python -m datasets.script2',
+        #             self.conf.path['metadata'], f'{idx}',
+        #             f'{key_mouth}___{pose_mouth}',
+        #             f'{key_left_eye}___{pose_left_eye}',
+        #             f'{key_right_eye}___{pose_right_eye}',
+        #         ]
 
-        # self.renderer.augmentation()
-
-        img_base_np = self.renderer.render_to_numpy_array()
-
-        pose_mouth = random.random()
-        pose_left_eye = random.random()
-        pose_right_eye = random.random()
-
-        key_mouth = 'あ'
-        key_left_eye = 'ウィンク'
-        key_right_eye = 'ウィンク右'
-
-        # pose_head_x = (random.random() - 0.5) * 2 * 45 # [-45, 45], in degrees
-        # pose_head_y = (random.random() - 0.5) * 2 * 45  # [-45, 45], in degrees
-        # pose_head_z = (random.random() - 0.5) * 2 * 45  # [-45, 45], in degrees
-
-        self.renderer.change_shapekey(key_mouth, pose_mouth)
-        self.renderer.change_shapekey(key_left_eye, pose_left_eye)
-        self.renderer.change_shapekey(key_right_eye, pose_right_eye)
-
-        img_target = self.renderer.render_to_numpy_array()
-
+        tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
+        tmp_path = os.path.join(tmp_dir, f'{idx}.png')
+        while not os.path.exists(tmp_path):
+            time.sleep(0.5)
+            print('waiting', tmp_path)
+        img_base_np = cv2.imread(tmp_path, cv2.IMREAD_UNCHANGED)
+        os.remove(tmp_path)
         return_data['img_base'] = self.np_img_to_torch(img_base_np)
-        return_data['pose'] = torch.Tensor([pose_mouth, pose_left_eye, pose_right_eye])
-        return_data['img_target'] = self.np_img_to_torch(img_target)
-
-        self.renderer.clean_blender()
 
         return return_data
 
@@ -80,3 +74,28 @@ class PlaceholderDataset(BaseDataset):
         return_data['pose'] = torch.Tensor([random.random(), random.random(), random.random()])
 
         return return_data
+
+
+if __name__ == '__main__':
+    from omegaconf import OmegaConf
+    import time
+    from torch.utils.data import DataLoader
+    from utils.util import cycle
+
+    import os
+    import sys
+
+    code_root = '/root/talking_head_anime'
+    os.chdir(code_root)
+    sys.path.append(os.getcwd())
+
+    conf = OmegaConf.load('configs/datasets/custom.yaml')
+    d = SubprocessDataset(conf)
+    loader = DataLoader(d, batch_size=4, num_workers=4)
+    it = cycle(loader)
+
+    start_time = time.time()
+    for i in range(10):
+        item = next(it)
+
+    print('TIME', time.time() - start_time)
