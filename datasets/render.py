@@ -1,13 +1,15 @@
 from collections import defaultdict
+import contextlib
 import logging
 import math
 import os
 import pickle
 import random
+import sys
 import time
 
-import numpy as np
 import cv2
+import numpy as np
 import pyvirtualdisplay
 
 import bpy
@@ -15,6 +17,15 @@ import addon_utils
 import mathutils
 
 logging.getLogger("bpy").setLevel(logging.WARNING)
+
+
+def suppress_stdout(func):
+    def wrapper(*a, **ka):
+        with open(os.devnull, 'w') as devnull:
+            with contextlib.redirect_stdout(devnull):
+                return func(*a, **ka)
+
+    return wrapper
 
 
 class Renderer:
@@ -73,7 +84,10 @@ class Renderer:
         # bpy.context.scene.render.use_render_cache = True # TODO use false
 
     @staticmethod
+    @suppress_stdout
     def set_addons():
+        logging.disable(logging.CRITICAL)
+
         addon_data = [
             {'name': 'cats-blender-plugin-master',
              'url': '',
@@ -83,7 +97,6 @@ class Renderer:
         ]
         for data in addon_data:
             addon_name = data['name']
-            print(addon_name)
 
             # check addon is installed
             installed_module_names = [module.__name__ for module in addon_utils.modules()]
@@ -95,6 +108,8 @@ class Renderer:
             is_loaded = addon_utils.check(addon_name)
             if not is_loaded[0] and not is_loaded[1]:
                 addon_utils.enable(addon_name)
+
+        logging.disable(logging.NOTSET)
 
     @staticmethod
     def init_camera():
@@ -129,21 +144,22 @@ class Renderer:
     # endgreion
 
     @staticmethod
+    @suppress_stdout
     def _import_model(path_input: str):
+        logging.disable(logging.CRITICAL)
         file_extension = path_input.rsplit('.', 1)[-1].lower()
         if file_extension == 'pmx' or file_extension == 'pmd':
             bpy.ops.cats_importer.import_any_model(filepath=path_input)
             # bpy.ops.mmd_tools.import_model(filepath=path_input)
         elif file_extension == 'vrm':
-            raise NotImplementedError
             bpy.ops.cats_importer.import_any_model(filepath=path_input)
         else:
             raise ValueError(f'file extension {file_extension} not supported')
+        logging.disable(logging.NOTSET)
 
     def import_model(self, path_model: str):
         path_model = os.path.abspath(path_model)
         if self.current_model != path_model:
-            print('deleting old model and loading new model')
             self.clean_blender()
             self.init_camera()
             self.init_light()
@@ -198,6 +214,7 @@ class Renderer:
             bpy.data.images.remove(orphan_images.pop())
 
     @staticmethod
+    @suppress_stdout
     def render():
         bpy.ops.render.render(write_still=True)
 
@@ -260,7 +277,6 @@ class Renderer:
                     bpy.context.view_layer.objects.active = obj
                     break
             obj.select_set(False)
-        print(bpy.context.object)
 
         # change value
         bpy.context.object.data.shape_keys.key_blocks[key].value = value
@@ -302,7 +318,6 @@ class Renderer:
         for key, obj in bpy.data.objects.items():
             if key == 'camera' or key == 'light':
                 continue
-            print(key, obj)
 
             # turn off toon, sphere texture - prevent pink render
             if hasattr(obj, 'mmd_root'):
@@ -346,8 +361,6 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     """
     model_path = os.path.abspath(model_path)
     dir_temp = os.path.abspath(dir_temp)
-    print(model_path)
-    print(dir_temp)
     os.makedirs(dir_temp, exist_ok=True)
     r = Renderer()
     r.import_model(model_path)
@@ -407,44 +420,4 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
 
     r.exit()
 
-
 # endregion
-
-
-if __name__ == '__main__':
-    import sys
-    import os
-
-    code_root = '/root/talking_head_anime'
-    os.chdir(code_root)
-    sys.path.append(os.getcwd())
-
-    argv = sys.argv
-    print(argv)
-    argv = argv[argv.index("--") + 1:]  # get all args after "--"
-
-    model_path = argv[0]
-    internal_idx = argv[1]
-
-    r = Renderer(make_display=True)
-    r.import_model(model_path)
-    r.set_camera_position()
-
-    tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
-    temp_path = os.path.join(tmp_dir, f'{internal_idx}.png')
-    if not os.path.exists(temp_path):
-        r.set_output_path(temp_path)
-        r.render()
-
-    temp_path = os.path.join(tmp_dir, f'{internal_idx}')
-    for item in argv[2:]:
-        key, value = item.strip().split('___')
-        value = float(value)
-        r.change_shapekey(key, value)
-        temp_path += f'_{value}'
-
-    # temp_path = sys.argv[-1]
-    temp_path += '.png'
-    r.set_output_path(temp_path)
-    r.render()
-    r.exit()

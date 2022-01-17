@@ -117,7 +117,6 @@ if __name__ == '__main__':
     code_root = '/root/talking_head_anime'
     os.chdir(code_root)
     sys.path.append(os.getcwd())
-    print(sys.argv)
 
     path_metadata = sys.argv[1]
     with open(path_metadata, 'r', encoding='utf-8') as f:
@@ -126,9 +125,7 @@ if __name__ == '__main__':
     internal_idx = int(sys.argv[2])
     model_idx = metadata[internal_idx].strip()
     model_dir = os.path.join('/raid/vision/dhchoi/data/3d_models', model_idx)
-    print(model_idx, model_dir)
     _, model_path = find_model_in_dir(model_dir)
-    print(model_path)
 
     # with pyvirtualdisplay.Display(visible=False, size=(1,1)) as disp:
     # if True:
@@ -140,7 +137,6 @@ if __name__ == '__main__':
 
         tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
         temp_path = os.path.join(tmp_dir, f'{internal_idx}.png')
-        print('script2', temp_path)
         if not os.path.exists(temp_path):
             r.set_output_path(temp_path)
             r.render()

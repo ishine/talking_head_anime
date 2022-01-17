@@ -94,8 +94,7 @@ if __name__ == '__main__':
     loader = DataLoader(d, batch_size=4, num_workers=4)
     it = cycle(loader)
 
-    start_time = time.time()
-    for i in range(10):
-        item = next(it)
+    from tqdm import trange
 
-    print('TIME', time.time() - start_time)
+    for i in trange(10):
+        item = next(it)
