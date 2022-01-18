@@ -2,10 +2,9 @@ import os
 import sys
 
 import bpy
-import pyvirtualdisplay
 
 from datasets.render import Renderer
-from datasets.utils.filter import find_model_in_dir
+from utils.data.filter import find_model_in_dir
 from utils.util import suppress_stdout
 
 
@@ -24,6 +23,8 @@ def main():
     model_dir = os.path.join('/raid/vision/dhchoi/data/3d_models', model_idx)
     _, model_path = find_model_in_dir(model_dir)
 
+    # display is needed when not using cycles engine
+    # import pyvirtualdisplay
     # with pyvirtualdisplay.Display(visible=False, size=(1,1)) as disp:
     if True:
         # set renderer
@@ -39,7 +40,7 @@ def main():
             r.set_output_path(temp_path)
             r.render()
 
-        # render moved image
+        # change pose
         temp_path = os.path.join(tmp_dir, f'{internal_idx}')
         for item in sys.argv[3:]:
             key, value = item.strip().split('___')
@@ -47,7 +48,7 @@ def main():
             r.change_shapekey(key, value)
             temp_path += f'_{value}'
 
-        # temp_path = sys.argv[-1]
+        # render moved image
         temp_path += '.png'
         r.set_output_path(temp_path)
         r.render()
