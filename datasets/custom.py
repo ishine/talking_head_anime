@@ -15,7 +15,8 @@ class SubprocessDataset(BaseDataset):
         with open(self.conf.path['metadata'], 'r', encoding='utf-8') as f:
             valid_models = f.readlines()
 
-        self.data = [os.path.join(self.conf.path['root'], line.strip()) for line in valid_models]
+        data = [os.path.join(self.conf.path['root'], line.strip()) for line in valid_models]
+        self.data = list(range(len(data)))
 
         train_split_idx = int(len(self.data) * 0.9)
         if self.conf.mode == 'train':
@@ -36,6 +37,7 @@ class SubprocessDataset(BaseDataset):
 
     def __getitem__(self, idx):
         return_data = {}
+        model_idx = self.data[idx]
 
         key_mouth = 'あ'
         val_mouth = random.random()
@@ -53,7 +55,7 @@ class SubprocessDataset(BaseDataset):
 
         commands = [
             'python', '-m', 'datasets.script2',
-            f'{self.conf.path["metadata"]}', f'{idx}',
+            f'{self.conf.path["metadata"]}', f'{model_idx}',
             f'{key_mouth}___{val_mouth}',
             f'{key_left_eye}___{val_left_eye}',
             f'{key_right_eye}___{val_right_eye}',
@@ -63,7 +65,7 @@ class SubprocessDataset(BaseDataset):
 
         tmp_dir = self.conf.path['tmp']
 
-        tmp_path = os.path.join(tmp_dir, f'{idx}_{val_mouth}_{val_left_eye}_{val_right_eye}.png')
+        tmp_path = os.path.join(tmp_dir, f'{model_idx}_{val_mouth}_{val_left_eye}_{val_right_eye}.png')
         while not os.path.exists(tmp_path):
             # time.sleep(0.5)
             print('waiting', tmp_path)
@@ -73,9 +75,10 @@ class SubprocessDataset(BaseDataset):
         os.remove(tmp_path)
         return_data['img_target'] = self.np_img_to_torch(img_target)
 
-        tmp_path = os.path.join(tmp_dir, f'{idx}.png')
+        tmp_path = os.path.join(tmp_dir, f'{model_idx}.png')
         img_base_np = cv2.imread(tmp_path, cv2.IMREAD_UNCHANGED)
         img_base_np = cv2.cvtColor(img_base_np, cv2.COLOR_BGRA2RGBA)
+        os.remove(tmp_path)
         return_data['img_base'] = self.np_img_to_torch(img_base_np)
 
         return return_data
