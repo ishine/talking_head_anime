@@ -3,10 +3,7 @@ class: datasets.custom.SubprocessDataset
 make_display: True
 
 path:
-  blender: /root/blender/blender-2.91.2-linux64/blender
-#  root: /DATA/vision/home/dhchoi/data/3d_models/
-  root: /raid/vision/dhchoi/data/3d_models/
-#  metadata: /DATA/vision/home/dhchoi/data/3d_models/filtered_idxs.txt
-  metadata: /raid/vision/dhchoi/data/3d_models/filtered_idxs.txt
-
-  tmp: /raid/vision/dhchoi/data/3d_models/tmp
+  blender: ./blender
+  root: ./data/3d_models/
+  metadata: ./data/3d_models/filtered_idxs.txt
+  tmp: ./data/3d_models/tmp

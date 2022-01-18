@@ -2,7 +2,12 @@ __pycache__/
 .idea/
 .ipynb_checkpoints/
 
-addons/*.zip
+addons/
+samples/
+data/
+logs/
+temp_result/
+metadata/
 
 *.png
 *.zip
