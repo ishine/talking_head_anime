@@ -59,14 +59,15 @@ class SubprocessDataset(BaseDataset):
             f'{key_right_eye}___{val_right_eye}',
         ]
         command = ' '.join(commands)
-        subprocess.call(command, shell=True, stdout=open(os.devnull, 'wb'))
+        subprocess.call(command, shell=True, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'))
 
         tmp_dir = self.conf.path['tmp']
 
         tmp_path = os.path.join(tmp_dir, f'{idx}_{val_mouth}_{val_left_eye}_{val_right_eye}.png')
         while not os.path.exists(tmp_path):
-            time.sleep(0.5)
+            # time.sleep(0.5)
             print('waiting', tmp_path)
+            raise TimeoutError
         img_target = cv2.imread(tmp_path, cv2.IMREAD_UNCHANGED)
         img_target = cv2.cvtColor(img_target, cv2.COLOR_BGRA2RGBA)
         os.remove(tmp_path)

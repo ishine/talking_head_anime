@@ -55,8 +55,8 @@ class Renderer:
         bpy.context.scene.render.image_settings.compression = 0
 
         # render image size(changes render region)
-        bpy.context.scene.render.resolution_x = 1024
-        bpy.context.scene.render.resolution_y = 1024
+        bpy.context.scene.render.resolution_x = 512
+        bpy.context.scene.render.resolution_y = 512
 
         # render samples (closely related to rendering time)
         bpy.context.scene.eevee.taa_render_samples = 8  # default 64
@@ -307,8 +307,6 @@ class Renderer:
 
     @suppress_stdout
     def set_camera_position(self):
-        logging.disable(logging.CRITICAL)
-
         for key, obj in bpy.data.objects.items():
             if key == 'camera' or key == 'light':
                 continue
@@ -337,8 +335,6 @@ class Renderer:
                 bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
                 bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
                 bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
-
-        logging.disable(logging.NOTSET)
     # endregion
 
 
