@@ -92,8 +92,8 @@ class FaceMorpher(nn.Module):
 
         """
         B, n = pose.shape
-        a0 = input_image
-        a1 = pose.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])
+        a0 = input_image  # B x 4 X H x W
+        a1 = pose.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])  # B x 3 x H x W
         a2 = torch.cat((a0, a1), dim=1)  # channel-wise concat
 
         b = a2
@@ -104,7 +104,16 @@ class FaceMorpher(nn.Module):
         e0 = self.change_image(d2)
         e1 = self.alpha_mask(d2)
         e2 = a0 * e0 + e1 * (1 - e0)
-        return e2
+
+        result = {
+            'a0': a0,
+            'a1': a1,
+            'e0': e0,
+            'e1': e1,
+            'e2': e2,
+        }
+
+        return result
 
 
 class FaceRotator(nn.Module):

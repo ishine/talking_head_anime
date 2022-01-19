@@ -31,10 +31,11 @@ class Trainer(BaseTrainer):
 
         gt_morphed_img = batch['img_target'].to(self.device)
 
-        gen_morphed_img = self.models['FaceMorpher'](gt_rest_img, pose)
+        result = self.models['FaceMorpher'](gt_rest_img, pose)
+        gen_morphed_img = result['e2']
         loss['l1_morph'] = F.l1_loss(gen_morphed_img, gt_morphed_img)
 
-        logs['gen_morphed_img'] = gen_morphed_img
+        logs.update(result)
         loss['backward'] = loss['l1_morph']
 
         return loss, logs
