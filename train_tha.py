@@ -20,7 +20,6 @@ class Trainer(BaseTrainer):
     def forward(self, batch, calc_log=False):
         loss = {}
         logs = {}
-        logs.update(batch)
 
         # input image: resting input image
         # pose1: pose image with left eye, right eye and mouth
@@ -35,8 +34,17 @@ class Trainer(BaseTrainer):
         gen_morphed_img = result['e2']
         loss['l1_morph'] = F.l1_loss(gen_morphed_img, gt_morphed_img)
 
-        logs.update(result)
         loss['backward'] = loss['l1_morph']
+
+        logs = {
+            'img_base': batch['img_base'],
+            'img_target': batch['img_target'],
+            'img_gen': result['e2'],
+            'e0': result['e0'],
+            'e1': result['e1'],
+            'a1': result['a1'],
+
+        }
 
         return loss, logs
 
@@ -54,13 +62,6 @@ class Trainer(BaseTrainer):
         loss['backward'].backward()
         self.optims['FaceMorpher'].step()
 
-        for key, value in batch.items():
-            if isinstance(value, torch.Tensor):
-                logs[key] = value.cpu().detach()
-                batch[key] = value.to(self.device)
-            else:
-                logs[key] = value
-
         return loss, logs
 
     def eval_step(self, batch, calc_log=False):
@@ -73,36 +74,37 @@ class Trainer(BaseTrainer):
 
         loss, logs = self.forward(batch)
 
-        for key, value in batch.items():
-            if isinstance(value, torch.Tensor):
-                logs[key] = value.cpu().detach()
-                batch[key] = value.to(self.device)
-            else:
-                logs[key] = value
-
         return loss, logs
 
     # endregion
 
     def awesome_logging(self, data, mode):
         tensorboard = self.logger
+
+        images = []
+        imagekeys = []
+
         for key, value in data.items():
             if isinstance(value, torch.Tensor):
-                value = value.squeeze()
-                if value.ndim == 0:
+                if value.ndim == 0:  # scalar
                     # tensorboard.add_scalar(f'{mode}/{key}', value, self.global_step)
                     tensorboard.add_scalar(f'{mode}/{key}', value, global_step=self.global_step)
-                elif value.ndim == 3:
-                    if value.shape[0] == 3:  # if 3-dim image
-                        tensorboard.add_image(f'{mode}/{key}', value, self.global_step, dataformats='CHW')
-                    else:  # B x H x W shaped images
-                        value_numpy = value[0].detach().cpu().numpy()  # select one in batch
-                        tensorboard.add_image(f'{mode}/{key}', value_numpy, self.global_step, dataformats='HWC')
-
-                elif value.ndim == 4:
+                elif value.ndim == 4:  # image
                     small_batch = value[:4]
-                    small_batch = torch.cat([small_batch[i] for i in range(small_batch.shape[0])], dim=-1)
-                    tensorboard.add_image(f'{mode}/{key}', small_batch, self.global_step, dataformats='CHW')
+
+                    # batch to height
+                    small_batch = torch.cat([small_batch[i] for i in range(small_batch.shape[0])], dim=-2)
+
+                    if small_batch.shape[0] == 3:  # i.e. not 4
+                        small_batch = torch.cat((small_batch, torch.ones_like(small_batch[0].unsqueeze(0))), dim=0)
+
+                    images.append(small_batch.detach().cpu())
+                    imagekeys.append(key)
+                    # tensorboard.add_image(f'{mode}/{key}', small_batch, self.global_step, dataformats='CHW')
+
+        if len(images) > 0:
+            imgs = torch.cat(images, dim=-1)
+            tensorboard.add_image(f'{mode}/{"/".join(imagekeys)}', imgs, self.global_step, dataformats='CHW')
 
 
 @torch.no_grad()
