@@ -2,10 +2,6 @@ from collections import defaultdict
 import logging
 import math
 import os
-import pickle
-import random
-import sys
-import time
 
 import cv2
 import numpy as np
@@ -37,10 +33,14 @@ class Renderer:
 
     @staticmethod
     def set_configs():
+        """sets bpy(blender) configs
+
+        Returns:
+
+        """
         bpy.context.scene.render.image_settings.file_format = 'PNG'
 
         # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
-        # some models are broken with cycles, so use eevee
         # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
         bpy.context.scene.render.engine = 'CYCLES'
 
@@ -55,8 +55,8 @@ class Renderer:
         bpy.context.scene.render.image_settings.compression = 0
 
         # render image size(changes render region)
-        bpy.context.scene.render.resolution_x = 512
-        bpy.context.scene.render.resolution_y = 512
+        bpy.context.scene.render.resolution_x = 256
+        bpy.context.scene.render.resolution_y = 256
 
         # render samples (closely related to rendering time)
         bpy.context.scene.eevee.taa_render_samples = 8  # default 64
@@ -68,10 +68,7 @@ class Renderer:
 
         # cycles settings
         # bpy.context.scene.cycles.device = 'GPU'
-        bpy.context.scene.cycles.samples = 64
-
-        # misc
-        # bpy.context.scene.render.use_render_cache = True # TODO use false
+        bpy.context.scene.cycles.samples = 64  # default 256?
 
     @staticmethod
     @suppress_stdout
@@ -82,8 +79,6 @@ class Renderer:
             {'name': 'cats-blender-plugin-master',
              'url': '',
              'path': './addons/cats-blender-plugin-master.zip', },
-            # {'name': 'mmd_tools',
-            #  'path': './addons/mmd_tools-v2.0.1.zip', }
         ]
         for data in addon_data:
             addon_name = data['name']
@@ -123,14 +118,6 @@ class Renderer:
         bpy.data.objects['light'].location = mathutils.Vector((0, -10, 0))
         bpy.data.lights['light'].energy = 100
 
-    def exit(self):
-        if self.make_display:
-            if self.display.is_alive():
-                self.display.stop()
-        # self.purge()
-        self.clean_blender()
-        bpy.ops.wm.read_factory_settings(use_empty=True)
-
     # endgreion
 
     @staticmethod
@@ -157,60 +144,10 @@ class Renderer:
 
             self.current_model = path_model
 
-    def clean_blender(self):
-        for i in range(10):
-            for attribute in dir(bpy.data):
-                try:
-                    bpy_dataset = getattr(bpy.data, attribute)
-                    for key, value in bpy_dataset.items():
-                        if key != 'camera' and key != 'light' and key != 'Scripting' and not (
-                                attribute == 'texts' and key == 'render.py'):
-                            bpy_dataset.remove(value)
-                except Exception as e:
-                    pass
-
-        self.current_model = ''
-
-    @staticmethod
-    def purge():
-        orphan_ob = [o for o in bpy.data.objects if not o.users]
-        while orphan_ob:
-            bpy.data.objects.remove(orphan_ob.pop())
-
-        orphan_mesh = [m for m in bpy.data.meshes if not m.users]
-        while orphan_mesh:
-            bpy.data.meshes.remove(orphan_mesh.pop())
-
-        orphan_mat = [mat for mat in bpy.data.materials if not mat.users]
-        while orphan_mat:
-            bpy.data.materials.remove(orphan_mat.pop())
-
-        def purge_node_groups():
-            orphan_node_group = [g for g in bpy.data.node_groups if not g.users]
-
-            while orphan_node_group:
-                bpy.data.node_groups.remove(orphan_node_group.pop())
-            if [g for g in bpy.data.node_groups if not g.users]:
-                purge_node_groups()
-
-        purge_node_groups()
-
-        orphan_texture = [t for t in bpy.data.textures if not t.users]
-        while orphan_texture:
-            bpy.data.textures.remove(orphan_texture.pop())
-
-        orphan_images = [i for i in bpy.data.images if not i.users]
-        while orphan_images:
-            bpy.data.images.remove(orphan_images.pop())
-
     @staticmethod
     @suppress_stdout
     def render():
         bpy.ops.render.render(write_still=True)
-
-    @staticmethod
-    def set_output_path(path_output):
-        bpy.context.scene.render.filepath = path_output
 
     def render_to_numpy_array(self):
         # switch on nodes
@@ -255,6 +192,36 @@ class Renderer:
     # endgreion
 
     # region utils
+
+    @staticmethod
+    def set_output_path(path_output):
+        bpy.context.scene.render.filepath = path_output
+
+    @staticmethod
+    @suppress_stdout
+    def clean_blender():
+        logging.disable(logging.CRITICAL)
+        for i in range(10):
+            for attribute in dir(bpy.data):
+                try:
+                    bpy_dataset = getattr(bpy.data, attribute)
+                    for key, value in bpy_dataset.items():
+                        if key != 'camera' and key != 'light' and key != 'Scripting' and not (
+                                attribute == 'texts' and key == 'render.py'):
+                            bpy_dataset.remove(value)
+                except Exception as e:
+                    pass
+
+        # self.current_model = ''
+        logging.disable(logging.NOTSET)
+
+    def exit(self):
+        if self.make_display:
+            if self.display.is_alive():
+                self.display.stop()
+        # self.purge()
+        self.clean_blender()
+        bpy.ops.wm.read_factory_settings(use_empty=True)
 
     @staticmethod
     def change_shapekey(key, value):
@@ -335,6 +302,7 @@ class Renderer:
                 bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
                 bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
                 bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
+
     # endregion
 
 

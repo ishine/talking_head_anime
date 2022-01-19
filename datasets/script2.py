@@ -10,7 +10,14 @@ from utils.util import suppress_stdout
 
 @suppress_stdout
 def main():
-    code_root = '/root/talking_head_anime'
+    """example script call:
+    `python -m datasets.script2 ./data/3d_models/filtered_idxs.txt 1 あ___0.7632 ウィンク___0.4486 ウィンク右___0.315`
+    renders base image and pose-moved image
+
+    Returns:
+
+    """
+    code_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(code_root)
     sys.path.append(os.getcwd())
 
@@ -20,10 +27,10 @@ def main():
 
     internal_idx = int(sys.argv[2])
     model_idx = metadata[internal_idx].strip()
-    model_dir = os.path.join('/raid/vision/dhchoi/data/3d_models', model_idx)
+    model_dir = os.path.join('./data/3d_models', model_idx)
     _, model_path = find_model_in_dir(model_dir)
 
-    # display is needed when not using cycles engine
+    # display is needed when (not using cycles engine) and using non-gui environment
     # import pyvirtualdisplay
     # with pyvirtualdisplay.Display(visible=False, size=(1,1)) as disp:
     if True:
@@ -34,7 +41,7 @@ def main():
         r.set_camera_position()
 
         # render rest-pose image
-        tmp_dir = '/raid/vision/dhchoi/data/3d_models/tmp'
+        tmp_dir = './data/3d_models/tmp'
         temp_path = os.path.join(tmp_dir, f'{internal_idx}.png')
         if not os.path.exists(temp_path):
             r.set_output_path(temp_path)

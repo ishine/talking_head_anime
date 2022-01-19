@@ -3,7 +3,6 @@ import random
 
 from omegaconf import OmegaConf
 from torch.utils.data import Dataset
-from tqdm import tqdm, trange
 
 from utils.conf import set_conf
 

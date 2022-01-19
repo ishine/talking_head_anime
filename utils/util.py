@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 def suppress_stdout(func):
     def wrapper(*a, **ka):
         with open(os.devnull, 'w') as devnull:
-            with contextlib.redirect_stdout(devnull):
+            with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
                 return func(*a, **ka)
 
     return wrapper
