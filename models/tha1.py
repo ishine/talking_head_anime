@@ -103,7 +103,8 @@ class FaceMorpher(nn.Module):
 
         e0 = self.change_image(d2)
         e1 = self.alpha_mask(d2)
-        e2 = a0 * e0 + e1 * (1 - e0)
+        # e2 = a0 * e0 + e1 * (1 - e0)
+        e2 = e1 * a0 + (1 - e1) * e0
 
         result = {
             'a0': a0,
