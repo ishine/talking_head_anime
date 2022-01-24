@@ -88,19 +88,25 @@ class ImageDataset(BaseDataset):
     def __init__(self, conf):
         super(ImageDataset, self).__init__(conf)
 
-        self.data = [os.path.join(self.conf.path['root'], path)
+        self.dirs = [os.path.join(self.conf.path['root'], path)
                      for path in os.listdir(self.conf.path['root'])
                      if os.path.isdir(os.path.join(self.conf.path['root'], path))]
 
-        train_split_idx = int(len(self.data) * 0.9)
+        train_split_idx = int(len(self.dirs) * 0.9)
         if self.conf.mode == 'train':
-            self.data = self.data[:train_split_idx]
+            self.dirs = self.dirs[:train_split_idx]
         elif self.conf.mode == 'eval':
-            self.data = self.data[train_split_idx:]
+            self.dirs = self.dirs[train_split_idx:]
         elif self.conf.mode == 'all':
             pass
         else:
             raise NotImplementedError
+
+        self.data = []
+        for path_dir in self.dirs:
+            files = [os.path.join(path_dir, file) for file in os.listdir(path_dir)
+                     if '_' in file]
+            self.data.extend(files)
 
     def __len__(self):
         return len(self.data)
