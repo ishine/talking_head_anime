@@ -84,6 +84,61 @@ class SubprocessDataset(BaseDataset):
         return return_data
 
 
+class ImageDataset(BaseDataset):
+    def __init__(self, conf):
+        super(ImageDataset, self).__init__(conf)
+
+        self.data = [os.path.join(self.conf.path['root'], path)
+                     for path in os.listdir(self.conf.path['root'])
+                     if os.path.isdir(os.path.join(self.conf.path['root'], path))]
+
+        train_split_idx = int(len(self.data) * 0.9)
+        if self.conf.mode == 'train':
+            self.data = self.data[:train_split_idx]
+        elif self.conf.mode == 'eval':
+            self.data = self.data[train_split_idx:]
+        elif self.conf.mode == 'all':
+            pass
+        else:
+            raise NotImplementedError
+
+    def __len__(self):
+        return len(self.data)
+
+    @staticmethod
+    def np_img_to_torch(img):
+        return torch.from_numpy(img).permute((2, 0, 1)) / 255.
+
+    def getitem(self, idx):
+        return_data = {}
+
+        # path_idx = self.data[idx]
+        path_idx = os.path.join(self.conf.path['root'], f'{idx}')
+
+        path_base = os.path.join(path_idx, f'{idx}.png')
+        img_base_np = cv2.imread(path_base, cv2.IMREAD_UNCHANGED)
+        assert img_base_np.shape == (512, 512, 4), f'{path_base}, {img_base_np.shape}'
+        img_base_np = cv2.cvtColor(img_base_np, cv2.COLOR_BGRA2RGBA)
+        return_data['img_base'] = self.np_img_to_torch(img_base_np)
+
+        paths_pose = os.listdir(path_idx)
+        paths_pose.remove(f'{idx}.png')
+        name_pose = random.choice(paths_pose)
+        path_pose = os.path.join(path_idx, name_pose)
+
+        img_target = cv2.imread(path_pose, cv2.IMREAD_UNCHANGED)
+        assert img_target.shape == (512, 512, 4), f'{path_pose}, {img_target.shape}'
+        img_target = cv2.cvtColor(img_target, cv2.COLOR_BGRA2RGBA)
+        return_data['img_target'] = self.np_img_to_torch(img_target)
+
+        pose = name_pose.rsplit('.', 1)[0].rsplit('_', 3)[-3:]
+        pose = [float(val) for val in pose]
+        assert len(pose) == 3, path_pose
+        return_data['pose'] = torch.FloatTensor(pose)
+
+        return return_data
+
+
 class PlaceholderDataset(BaseDataset):
     def __init__(self, conf):
         super(PlaceholderDataset, self).__init__(conf)

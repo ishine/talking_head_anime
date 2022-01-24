@@ -1,9 +1,9 @@
-class: datasets.custom.SubprocessDataset
+class: datasets.custom.ImageDataset
 
-make_display: True
+make_display: False
 
 path:
   blender: ./blender
-  root: ./data/3d_models/
-  metadata: ./data/3d_models/filtered_idxs.txt
-  tmp: ./data/3d_models/tmp
+  root: data/3d_models/images
+  metadata: data/3d_models/filtered_idxs.txt
+  tmp: data/3d_models/tmp
