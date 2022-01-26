@@ -29,12 +29,20 @@ class Trainer(BaseTrainer):
         pose = batch['pose'].to(self.device)
 
         gt_morphed_img = batch['img_target'].to(self.device)
+        normalized_diff = (((gt_morphed_img - gt_rest_img)))[:, :3]
 
         result = self.models['FaceMorpher'](gt_rest_img, pose)
         gen_morphed_img = result['e2']
         loss['l1_morph'] = F.l1_loss(gen_morphed_img, gt_morphed_img)
 
         loss['backward'] = loss['l1_morph']
+
+        target_mask = (normalized_diff != 0.0).float()
+        loss['mask'] = F.mse_loss(result['e1'][:, :3], 1 - target_mask)
+        loss['backward'] = loss['backward'] + 1 * loss['mask']
+
+        # loss['change'] = F.mse_loss(result['e0'], gt_morphed_img - gen_morphed_img)
+        # loss['backward'] = loss['backward'] + 0.01 * loss['change']
 
         logs = {
             'img_base': batch['img_base'],
@@ -43,7 +51,9 @@ class Trainer(BaseTrainer):
             'e0': result['e0'],
             'e1': result['e1'],
             'a1': result['a1'],
-
+            'gt_mask': target_mask,
+            'gt_change': target_mask * normalized_diff,
+            'gt_diff': normalized_diff
         }
 
         return loss, logs
@@ -90,7 +100,7 @@ class Trainer(BaseTrainer):
                     # tensorboard.add_scalar(f'{mode}/{key}', value, self.global_step)
                     tensorboard.add_scalar(f'{mode}/{key}', value, global_step=self.global_step)
                 elif value.ndim == 4:  # image
-                    small_batch = value[:4]
+                    small_batch = value[:2]
 
                     # batch to height
                     small_batch = torch.cat([small_batch[i] for i in range(small_batch.shape[0])], dim=-2)
