@@ -38,7 +38,7 @@ class Trainer(BaseTrainer):
         loss['backward'] = loss['l1_morph']
 
         target_mask = (normalized_diff != 0.0).float()
-        loss['mask'] = F.mse_loss(result['e1'][:, :3], 1 - target_mask)
+        loss['mask'] = F.mse_loss(result['e1'][:, :3], target_mask)
         loss['backward'] = loss['backward'] + 1 * loss['mask']
 
         # loss['change'] = F.mse_loss(result['e0'], gt_morphed_img - gen_morphed_img)
@@ -53,7 +53,7 @@ class Trainer(BaseTrainer):
             'a1': result['a1'],
             'gt_mask': target_mask,
             'gt_change': target_mask * normalized_diff,
-            'gt_diff': normalized_diff
+            'gt_diff': normalized_diff  
         }
 
         return loss, logs
