@@ -118,26 +118,25 @@ class ImageDataset(BaseDataset):
     def getitem(self, idx):
         return_data = {}
 
-        # path_idx = self.data[idx]
-        path_idx = os.path.join(self.conf.path['root'], f'{idx}')
+        path_pose = self.data[idx]
+        path_base = os.path.join(os.path.dirname(path_pose), os.path.basename(path_pose).split('_')[0] + '.png')
 
-        path_base = os.path.join(path_idx, f'{idx}.png')
         img_base_np = cv2.imread(path_base, cv2.IMREAD_UNCHANGED)
-        assert img_base_np.shape == (512, 512, 4), f'{path_base}, {img_base_np.shape}'
+        try:
+            assert img_base_np.shape == (512, 512, 4), f'{path_base}, {img_base_np.shape}'
+        except:
+            print(path_pose, path_base)
+        img_base_np = cv2.resize(img_base_np, (256, 256))
         img_base_np = cv2.cvtColor(img_base_np, cv2.COLOR_BGRA2RGBA)
         return_data['img_base'] = self.np_img_to_torch(img_base_np)
 
-        paths_pose = os.listdir(path_idx)
-        paths_pose.remove(f'{idx}.png')
-        name_pose = random.choice(paths_pose)
-        path_pose = os.path.join(path_idx, name_pose)
-
         img_target = cv2.imread(path_pose, cv2.IMREAD_UNCHANGED)
         assert img_target.shape == (512, 512, 4), f'{path_pose}, {img_target.shape}'
+        img_target = cv2.resize(img_target, (256, 256))
         img_target = cv2.cvtColor(img_target, cv2.COLOR_BGRA2RGBA)
         return_data['img_target'] = self.np_img_to_torch(img_target)
 
-        pose = name_pose.rsplit('.', 1)[0].rsplit('_', 3)[-3:]
+        pose = path_pose.rsplit('.', 1)[0].rsplit('_', 3)[-3:]
         pose = [float(val) for val in pose]
         assert len(pose) == 3, path_pose
         return_data['pose'] = torch.FloatTensor(pose)
