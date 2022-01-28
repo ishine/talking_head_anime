@@ -5,6 +5,8 @@ import time
 
 import cv2
 import torch
+from torchvision import transforms as T
+import torchvision.transforms.functional as TF
 
 from datasets.base import BaseDataset
 
@@ -115,6 +117,29 @@ class ImageDataset(BaseDataset):
     def np_img_to_torch(img):
         return torch.from_numpy(img).permute((2, 0, 1)) / 255.
 
+    def augmentation(self, images):
+        brightness_scale = 0.5
+        brightness = random.uniform(1 - brightness_scale, 1 + brightness_scale)
+        contrast_scale = 0.5
+        contrast = random.uniform(1 - contrast_scale, 1 + contrast_scale)
+        saturation_scale = 0.5
+        saturation = random.uniform(1 - saturation_scale, 1 + saturation_scale)
+        hue_scale = 0.3
+        hue = random.uniform(-hue_scale, hue_scale)
+
+        new_images = []
+        for image in images:
+            alpha = image[-1].clone().unsqueeze(0)
+            new_image = image[:-1].clone()
+            new_image = TF.adjust_brightness(new_image, brightness)
+            new_image = TF.adjust_contrast(new_image, contrast)
+            new_image = TF.adjust_saturation(new_image, saturation)
+            new_image = torch.cat((new_image, alpha), dim=0)
+            # new_image = TF.adjust_hue(new_image, hue)
+            new_images.append(new_image)
+
+        return new_images
+
     def getitem(self, idx):
         return_data = {}
 
@@ -128,17 +153,22 @@ class ImageDataset(BaseDataset):
             print(path_pose, path_base)
         img_base_np = cv2.resize(img_base_np, (256, 256))
         img_base_np = cv2.cvtColor(img_base_np, cv2.COLOR_BGRA2RGBA)
-        return_data['img_base'] = self.np_img_to_torch(img_base_np)
+        img_base = self.np_img_to_torch(img_base_np)
 
-        img_target = cv2.imread(path_pose, cv2.IMREAD_UNCHANGED)
-        assert img_target.shape == (512, 512, 4), f'{path_pose}, {img_target.shape}'
-        img_target = cv2.resize(img_target, (256, 256))
-        img_target = cv2.cvtColor(img_target, cv2.COLOR_BGRA2RGBA)
-        return_data['img_target'] = self.np_img_to_torch(img_target)
+        img_target_np = cv2.imread(path_pose, cv2.IMREAD_UNCHANGED)
+        assert img_target_np.shape == (512, 512, 4), f'{path_pose}, {img_target_np.shape}'
+        img_target_np = cv2.resize(img_target_np, (256, 256))
+        img_target_np = cv2.cvtColor(img_target_np, cv2.COLOR_BGRA2RGBA)
+        img_target = self.np_img_to_torch(img_target_np)
+
+        img_base, img_target = self.augmentation((img_base, img_target))
 
         pose = path_pose.rsplit('.', 1)[0].rsplit('_', 3)[-3:]
         pose = [float(val) for val in pose]
         assert len(pose) == 3, path_pose
+
+        return_data['img_base'] = img_base
+        return_data['img_target'] = img_target
         return_data['pose'] = torch.FloatTensor(pose)
 
         return return_data

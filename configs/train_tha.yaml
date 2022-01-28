@@ -1,11 +1,11 @@
 logging:
   log_dir: "./logs/"
-  seed: "7"
+  seed: "13"
   nepochs: 10000
   device: cuda
   save_optimizer_state: False
 
-  freq: 50
+  freq: 500
 
   save_files: [
       '*.py',
@@ -26,7 +26,7 @@ datasets:
     ]
 
     mode: train
-    batch_size: 16
+    batch_size: 25
     shuffle: True
     num_workers: 16
 
@@ -37,7 +37,7 @@ datasets:
     ]
 
     mode: eval
-    batch_size: 16
+    batch_size: 25
     shuffle: False
     num_workers: 4
 

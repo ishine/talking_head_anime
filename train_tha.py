@@ -29,7 +29,7 @@ class Trainer(BaseTrainer):
         pose = batch['pose'].to(self.device)
 
         gt_morphed_img = batch['img_target'].to(self.device)
-        normalized_diff = (((gt_morphed_img - gt_rest_img)))[:, :3]
+        normalized_diff = (((gt_morphed_img - gt_rest_img)))
 
         result = self.models['FaceMorpher'](gt_rest_img, pose)
         gen_morphed_img = result['e2']
@@ -37,8 +37,9 @@ class Trainer(BaseTrainer):
 
         loss['backward'] = loss['l1_morph']
 
-        target_mask = (normalized_diff != 0.0).float()
-        loss['mask'] = F.mse_loss(result['e1'][:, :3], target_mask)
+        # target_mask = (normalized_diff != 0.0).float()
+        target_mask = (torch.abs(normalized_diff) > 6 / 256.).float()
+        loss['mask'] = F.mse_loss(result['e1'], target_mask)
         loss['backward'] = loss['backward'] + 1 * loss['mask']
 
         # loss['change'] = F.mse_loss(result['e0'], gt_morphed_img - gen_morphed_img)
@@ -49,11 +50,11 @@ class Trainer(BaseTrainer):
             'img_target': batch['img_target'],
             'img_gen': result['e2'],
             'e0': result['e0'],
-            'e1': result['e1'],
+            'e1': result['e1'][:, :3],
             'a1': result['a1'],
-            'gt_mask': target_mask,
-            'gt_change': target_mask * normalized_diff,
-            'gt_diff': normalized_diff  
+            'gt_mask': target_mask[:, :3],
+            'gt_change': (target_mask * normalized_diff)[:, :3],
+            'gt_diff': (normalized_diff)[:, :3]
         }
 
         return loss, logs
