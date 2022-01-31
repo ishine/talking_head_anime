@@ -40,7 +40,6 @@ class Renderer:
         """
         bpy.context.scene.render.image_settings.file_format = 'PNG'
 
-        # engine choosing: https://www.cgdirector.com/best-renderers-render-engines-for-blender/
         # bpy.context.scene.render.engine = 'BLENDER_EEVEE'
         bpy.context.scene.render.engine = 'CYCLES'
 
@@ -52,11 +51,11 @@ class Renderer:
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
 
         # compression, default=15
-        bpy.context.scene.render.image_settings.compression = 0
+        bpy.context.scene.render.image_settings.compression = 15
 
         # render image size(changes render region)
-        bpy.context.scene.render.resolution_x = 256
-        bpy.context.scene.render.resolution_y = 256
+        bpy.context.scene.render.resolution_x = 512
+        bpy.context.scene.render.resolution_y = 512
 
         # render samples (closely related to rendering time)
         bpy.context.scene.eevee.taa_render_samples = 8  # default 64
@@ -97,26 +96,25 @@ class Renderer:
         logging.disable(logging.NOTSET)
 
     @staticmethod
-    def init_camera():
-        if 'camera' not in bpy.context.scene.objects.keys():
-            cam_data = bpy.data.cameras.new('camera')
-            cam = bpy.data.objects.new('camera', cam_data)
+    def init_camera(camera_name='Camera'):
+        if camera_name not in bpy.context.scene.objects.keys():
+            cam_data = bpy.data.cameras.new(camera_name)
+            cam = bpy.data.objects.new(camera_name, cam_data)
             bpy.context.collection.objects.link(cam)
             bpy.context.scene.camera = cam
-        bpy.data.objects['camera'].location = mathutils.Vector((0, 0, 0))
-        bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2, 0, 0))
-        bpy.data.objects['camera'].data.type = 'ORTHO'
-        bpy.data.objects['camera'].data.ortho_scale = 0.5  # default=6
+        bpy.data.objects[camera_name].location = mathutils.Vector((0, 0, 0))
+        bpy.data.objects[camera_name].rotation_euler = mathutils.Euler((math.pi / 2, 0, 0))
+        bpy.data.objects[camera_name].data.type = 'ORTHO'
+        bpy.data.objects[camera_name].data.ortho_scale = 0.5  # default=6
 
     @staticmethod
-    def init_light():
-        if 'light' not in bpy.context.scene.objects.keys():
-            light_data = bpy.data.lights.new('light', type='POINT')
-            # light_data = bpy.data.lights.new('light', type='SUN')
-            light = bpy.data.objects.new('light', light_data)
+    def init_light(light_name="Light"):
+        if light_name not in bpy.context.scene.objects.keys():
+            light_data = bpy.data.lights.new(light_name, type='POINT')
+            light = bpy.data.objects.new(light_name, light_data)
             bpy.context.collection.objects.link(light)
-        bpy.data.objects['light'].location = mathutils.Vector((0, -10, 0))
-        bpy.data.lights['light'].energy = 100
+        bpy.data.objects[light_name].location = mathutils.Vector((0, -10, 0))
+        bpy.data.lights[light_name].energy = 100
 
     # endgreion
 
@@ -199,14 +197,14 @@ class Renderer:
 
     @staticmethod
     @suppress_stdout
-    def clean_blender():
+    def clean_blender(camera_name="Camera", light_name="Light"):
         logging.disable(logging.CRITICAL)
         for i in range(10):
             for attribute in dir(bpy.data):
                 try:
                     bpy_dataset = getattr(bpy.data, attribute)
                     for key, value in bpy_dataset.items():
-                        if key != 'camera' and key != 'light' and key != 'Scripting' and not (
+                        if key != camera_name and key != light_name and key != 'Scripting' and not (
                                 attribute == 'texts' and key == 'render.py'):
                             bpy_dataset.remove(value)
                 except Exception as e:
@@ -272,10 +270,11 @@ class Renderer:
 
         return location
 
+    @staticmethod
     @suppress_stdout
-    def set_camera_position(self):
+    def set_camera_position(camera_name="Camera", light_name="Light"):
         for key, obj in bpy.data.objects.items():
-            if key == 'camera' or key == 'light':
+            if key == camera_name or key == light_name:
                 continue
 
             # turn off toon, sphere texture - prevent pink render
@@ -295,13 +294,13 @@ class Renderer:
 
             location = None
             try:
-                location = self.find_head_position(obj)
+                location = Renderer.find_head_position(obj)
             except:
                 pass
             if location is not None:
-                bpy.data.objects['camera'].location = mathutils.Vector(location + (0, -0.5, 0))
-                bpy.data.objects['camera'].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
-                bpy.data.objects['light'].location = mathutils.Vector(location + (0, -2, 0))
+                bpy.data.objects[camera_name].location = mathutils.Vector(location + (0, -0.5, 0))
+                bpy.data.objects[camera_name].rotation_euler = mathutils.Euler((math.pi / 2., 0, 0))
+                bpy.data.objects[light_name].location = mathutils.Vector(location + (0, -2, 0))
 
     # endregion
 
@@ -333,7 +332,7 @@ def test_render(model_path: str, dir_temp: str = './result_temp'):
     # find bpy object with shape_keys
     for key, obj in bpy.data.objects.items():
         # set camera position
-        if key == 'camera' or key == 'light':
+        if key == "Camera" or key == "Light":
             continue
         print(key, obj)
         # direction = -y -> +y
