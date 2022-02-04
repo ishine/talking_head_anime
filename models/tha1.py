@@ -20,11 +20,9 @@ class ResnetBlock(nn.Module):
         return y
 
 
-class FaceMorpher(nn.Module):
-    def __init__(self, conf):
-        super(FaceMorpher, self).__init__()
-        self.conf = conf
-        c_mid = 64
+class CommonBackbone(nn.Module):
+    def __init__(self, c_mid=64):
+        super(CommonBackbone, self).__init__()
 
         self.network = nn.ModuleList([
             nn.Sequential(
@@ -72,6 +70,20 @@ class FaceMorpher(nn.Module):
             ),
         ])
 
+    def forward(self, x):
+        for f in self.network:
+            x = f(x)
+        return x
+
+
+class FaceMorpher(nn.Module):
+    def __init__(self, conf):
+        super(FaceMorpher, self).__init__()
+        self.conf = conf
+        c_mid = 64
+
+        self.backbone = CommonBackbone(c_mid)
+
         self.change_image = nn.Sequential(
             nn.Conv2d(c_mid, 4, kernel_size=7, stride=1, padding=3),
             nn.Tanh(),
@@ -81,25 +93,22 @@ class FaceMorpher(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, input_image, pose):
+    def forward(self, input_image, shape):
         """
 
         Args:
             input_image: input image. torch.Tensor of shape B x C(4) x H x W
-            pose: pose vector. torch.Tensor of shape B x n(3)
+            shape: shape vector. torch.Tensor of shape B x n(3)
 
         Returns:
 
         """
-        B, n = pose.shape
+        B, n = shape.shape
         a0 = input_image  # B x 4 X H x W
-        a1 = pose.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])  # B x 3 x H x W
+        a1 = shape.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])  # B x 3 x H x W
         a2 = torch.cat((a0, a1), dim=1)  # channel-wise concat
 
-        b = a2
-        for m in self.network:
-            b = m(b)
-        d2 = b
+        d2 = self.backbone(a2)
 
         e0 = self.change_image(d2)
         e1 = self.alpha_mask(d2)
@@ -117,57 +126,13 @@ class FaceMorpher(nn.Module):
         return result
 
 
-class FaceRotator(nn.Module):
+class TwoAlgorithmFaceRotator(nn.Module):
     def __init__(self, conf):
-        super(FaceRotator, self).__init__()
+        super(TwoAlgorithmFaceRotator, self).__init__()
         self.conf = conf
         c_mid = 64
 
-        self.network = nn.ModuleList([
-            nn.Sequential(
-                nn.Conv2d(7, c_mid, kernel_size=7, stride=1, padding=3),
-                nn.InstanceNorm2d(c_mid),
-                nn.ReLU(inplace=True),
-            ),
-            nn.Sequential(
-                nn.Conv2d(c_mid, c_mid * 2, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid * 2),
-                nn.ReLU(inplace=True),
-            ),
-            nn.Sequential(
-                nn.Conv2d(c_mid * 2, c_mid * 4, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid * 4),
-                nn.ReLU(inplace=True),
-            ),
-            nn.Sequential(
-                nn.Conv2d(c_mid * 4, c_mid * 8, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid * 8),
-                nn.ReLU(inplace=True),
-            ),
-
-            ResnetBlock(c_mid * 8),
-            ResnetBlock(c_mid * 8),
-            ResnetBlock(c_mid * 8),
-            ResnetBlock(c_mid * 8),
-            ResnetBlock(c_mid * 8),
-            ResnetBlock(c_mid * 8),
-
-            nn.Sequential(
-                nn.ConvTranspose2d(c_mid * 8, c_mid * 4, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid * 4),
-                nn.ReLU(inplace=True),
-            ),
-            nn.Sequential(
-                nn.ConvTranspose2d(c_mid * 4, c_mid * 2, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid * 2),
-                nn.ReLU(inplace=True),
-            ),
-            nn.Sequential(
-                nn.ConvTranspose2d(c_mid * 2, c_mid, kernel_size=4, stride=2, padding=1),
-                nn.InstanceNorm2d(c_mid),
-                nn.ReLU(inplace=True),
-            ),
-        ])
+        self.backbone = CommonBackbone(c_mid)
 
         self.change_image = nn.Sequential(
             nn.Conv2d(c_mid, 4, kernel_size=7, stride=1, padding=3),
@@ -180,28 +145,46 @@ class FaceRotator(nn.Module):
 
         self.appearance_flow = nn.Conv2d(c_mid, 2, kernel_size=7, stride=1, padding=3)
 
-    def forward(self, a0, a1):
-        # a0.shape: B x C(4) x H(256) x W(256)
-        # a1.shape: B x C(3) x H(256) x W(256)
+    def forward(self, input_image, pose):
+        """
 
+        Args:
+            input_image: input image. torch.Tensor of shape B x C(4) x H x W
+            pose: pose vector. torch.Tensor of shape B x n(3)
+
+        Returns:
+
+        """
+        B, n = pose.shape
+        a0 = input_image  # B x 4 X H x W
+        a1 = pose.reshape(B, n, 1, 1).repeat(1, 1, a0.shape[-2], a0.shape[-1])  # B x 3 x H x W
         a2 = torch.cat((a0, a1), dim=1)  # channel-wise concat
-        b = a2
-        for m in self.network:
-            b = m(b)
-        d2 = b
+
+        d2 = self.backbone(a2)
 
         e0 = self.change_image(d2)
         e1 = self.alpha_mask(d2)
-        e2 = a0 * e0 + e1 * (1 - e0)
+        # e2 = a0 * e0 + e1 * (1 - e0)
+        e2 = e1 * a0 + (1 - e1) * e0
 
         xs = torch.linspace(-1, 1, steps=a0.shape[-1])
         ys = torch.linspace(-1, 1, steps=a0.shape[-2])
         grid_x, grid_y = torch.meshgrid(xs, ys, indexing='ij')
         identity_appearance_flow = torch.stack((grid_x, grid_y), dim=0).unsqueeze(0)  # 1 x 2 x H x W
         e3 = self.appearance_flow(d2) + identity_appearance_flow
-
         e4 = F.grid_sample(a0, e3.permute((0, 2, 3, 1)))
-        return e2, e4
+
+        result = {
+            'a0': a0,
+            'a1': a1,
+            'e0': e0,
+            'e1': e1,
+            'e2': e2,
+            'e3': e3,
+            'e4': e4,
+        }
+
+        return result
 
 
 class Combiner(nn.Module):
@@ -281,9 +264,16 @@ class Combiner(nn.Module):
         )
 
     def forward(self, a0, a1, a2):
-        # a0.shape: B x C(4) x H(256) x W(256)
-        # a1.shape: B x C(4) x H(256) x W(256)
-        # a2.shape: B x C(3) x H(256) x W(256)
+        """
+
+        Args:
+            a0: torch.Tensor of shape B x C(4) x H(256) x W(256)
+            a1: torch.Tensor of shape B x C(4) x H(256) x W(256)
+            a2: torch.Tensor of shape B x C(3) x H(256) x W(256)
+
+        Returns:
+
+        """
         a3 = torch.cat((a0, a1, a2), dim=1)  # channel-wise concat
 
         bs = []
@@ -307,9 +297,26 @@ class Combiner(nn.Module):
         e0 = self.combine_alpha_mask(d6)
         e1 = self.change_for_retouch(d6)
         e2 = self.retouch_alpha_mask(d6)
-        e3 = a0 * e0 + a1 * (1 - e0)
-        e4 = e3 * e2 + e1 * (1 - e2)
-        return e4
+
+        e3 = e0 * a0 + (1 - e0) * a1
+        e4 = e2 * e3 + (1 - e2) * e1
+
+        result = {
+            'a0': a0,
+            'a1': a1,
+            'e0': e0,
+            'e1': e1,
+            'e2': e2,
+            'e3': e3,
+            'e4': e4,
+        }
+
+        return result
+
+
+class FaceRotator(nn.Module):
+    def __init__(self):
+        super(FaceRotator, self).__init__()
 
 
 class THA1(nn.Module):
@@ -318,16 +325,23 @@ class THA1(nn.Module):
         self.conf = conf
 
         self.face_morpher = FaceMorpher(None)
-        self.face_rotator = FaceRotator(None)
+        self.face_rotator = TwoAlgorithmFaceRotator(None)
         self.combiner = Combiner(None)
 
-    def forward(self, x, pose1, pose2):
-        # x: input image
-        # pose1: pose image with left eye, right eye and mouth
-        # pose2: pose image with neck tip x-rotation, neck tip y-rotation, and neck root z-rotation
-        morphed_face = self.face_morpher(x, pose1)
-        rotated_face1, rotated_face2 = self.face_rotator(morphed_face, pose2)
-        final_face = self.combiner(rotated_face1, rotated_face2, pose2)
+    def forward(self, x, shape, pose):
+        """
+
+        Args:
+            x: input image. torch.Tensor of shape B x C(4) x H x W
+            shape: shape vector. torch.Tensor of shape B x n(3)
+            pose: pose vector. torch.Tensor of shape B x n(3)
+
+        Returns:
+
+        """
+        morphed_face = self.face_morpher(x, shape)
+        rotated_face1, rotated_face2 = self.face_rotator(morphed_face, pose)
+        final_face = self.combiner(rotated_face1, rotated_face2, pose)
         return final_face
 
 
@@ -339,7 +353,7 @@ if __name__ == '__main__':
     y = f1(a0, a2)
     print(y.shape)
 
-    f2 = FaceRotator()
+    f2 = TwoAlgorithmFaceRotator()
     y1, y2 = f2(a0, a2)
     print(y1.shape)
     print(y2.shape)
