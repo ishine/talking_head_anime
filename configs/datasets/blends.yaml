@@ -1,0 +1,9 @@
+class: datasets.blends.BlendDataset
+
+make_display: False
+
+path:
+  blender: ./blender
+  root: data/3d_models/blends
+  metadata: data/3d_models/all_blends.txt
+  tmp: data/3d_models/tmp
