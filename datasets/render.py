@@ -256,6 +256,47 @@ class Renderer:
         bpy.ops.object.mode_set(mode='OBJECT')
 
     @staticmethod
+    def rotate_bone(obj, poseTable):
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
+        bpy.context.view_layer.objects.active = obj  # Make the cube the active object
+        obj.select_set(True)  # Select the cube
+        bpy.ops.object.mode_set(mode='POSE')
+
+        for (bname, axis, angle) in poseTable:
+            pbone = obj.pose.bones[bname]
+            # Set rotation mode to Euler XYZ, easier to understand
+            # than default quaternions
+
+            loc, rot, sca = pbone.matrix.decompose()
+            loc = loc.to_4d()
+
+            R = mathutils.Matrix.Rotation(math.radians(angle), 4, axis)
+            new_mat = R @ pbone.matrix
+            for i in range(4):
+                new_mat[i][3] = loc[i]
+            pbone.matrix = new_mat
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    @staticmethod
+    @suppress_stdout
+    def fix_model():
+        for key, obj in bpy.data.objects.items():
+            # turn off toon, sphere texture - prevent pink render
+            if hasattr(obj, 'mmd_root'):
+                if hasattr(obj.mmd_root, 'use_toon_texture'):
+                    try:
+                        obj.mmd_root.use_toon_texture = False
+                    except:
+                        pass
+                if hasattr(obj.mmd_root, 'use_sphere_texture'):
+                    try:
+                        obj.mmd_root.use_sphere_texture = False
+                    except:
+                        pass
+
+    @staticmethod
     def find_head_position(obj, head_key='頭'):
         vgs = defaultdict(list)
         for v in obj.data.vertices:
@@ -277,21 +318,6 @@ class Renderer:
             if key == camera_name or key == light_name:
                 continue
 
-            # turn off toon, sphere texture - prevent pink render
-            if hasattr(obj, 'mmd_root'):
-                if hasattr(obj.mmd_root, 'use_toon_texture'):
-                    try:
-                        # bpy.data.objects[key].mmd_root.use_toon_texture = False
-                        obj.mmd_root.use_toon_texture = False
-                    except:
-                        pass
-                if hasattr(obj.mmd_root, 'use_sphere_texture'):
-                    try:
-                        # bpy.data.objects[key].mmd_root.use_sphere_texture = False
-                        obj.mmd_root.use_sphere_texture = False
-                    except:
-                        pass
-
             location = None
             try:
                 location = Renderer.find_head_position(obj)
@@ -307,75 +333,60 @@ class Renderer:
 
 # region test
 
-def test_render(model_path: str, dir_temp: str = './result_temp'):
-    """
-
-    Args:
-        model_path: path to model. recommended to give as absolute path
-        dir_temp: temporary dir to save rendered images. recommended to give as absolute path
-
-    Returns:
-
-    """
-    model_path = os.path.abspath(model_path)
+def test_render_blend(blend_path: str, dir_temp: str = './result_temp'):
+    blend_path = os.path.abspath(blend_path)
     dir_temp = os.path.abspath(dir_temp)
     os.makedirs(dir_temp, exist_ok=True)
-    r = Renderer()
-    r.import_model(model_path)
 
-    # set camera position
+    bpy.ops.wm.open_mainfile(filepath=blend_path)
+
+    camera_name = "Camera.001"
+    light_name = "Light.001"
+    Renderer.init_camera(camera_name=camera_name)
+    Renderer.init_light(light_name=light_name)
+    Renderer.set_camera_position(camera_name=camera_name, light_name=light_name)
+    Renderer.fix_model()
 
     # base image # TODO check if rest pose
-    r.set_output_path(os.path.join(dir_temp, 'base.png'))
-    r.render()
+    Renderer.set_output_path(os.path.join(dir_temp, 'base.png'))
+    Renderer.render()
 
-    # find bpy object with shape_keys
+    for idx, shape_key in enumerate(['あ', 'ウィンク', 'ウィンク右']):
+        try:
+            Renderer.change_shapekey(shape_key, 1.0)
+            Renderer.set_output_path(os.path.join(dir_temp, f'base_{idx}.png'))
+            Renderer.render()
+            Renderer.change_shapekey(shape_key, 0.0)
+        except Exception as e:
+            print(e)
+            pass
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
     for key, obj in bpy.data.objects.items():
-        # set camera position
-        if key == "Camera" or key == "Light":
-            continue
-        print(key, obj)
-        # direction = -y -> +y
+        if key != camera_name and key != light_name:
+            print(key, obj)
 
-        # select single object
-        bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
-        bpy.context.view_layer.objects.active = obj
-        obj.select_set(True)
+            # object with poses
+            if hasattr(obj, 'pose') and hasattr(obj.pose, 'bones') and obj.pose.bones is not None:
+                # rotate head
+                Renderer.rotate_bone(obj, [('頭', 'Y', 60)])
+                Renderer.set_output_path(os.path.join(dir_temp, f'base_Y.png'))
+                Renderer.render()
+                Renderer.rotate_bone(obj, [('頭', 'Y', -60)])
 
-        # object with shape_keys
-        if hasattr(obj.data, 'shape_keys') and obj.data.shape_keys is not None:
-            for shape_key in ['あ', 'ウィンク', 'ウィンク右']:
-                try:
-                    r.change_shapekey(shape_key, 1.0)
-                    r.set_output_path(os.path.join(dir_temp, f'{key}.{shape_key}.png'))
-                    r.render()
-                    r.change_shapekey(shape_key, 0.0)
-                except Exception as e:
-                    print(e)
-                    pass
+                Renderer.rotate_bone(obj, [('頭', 'X', 60)])
+                Renderer.set_output_path(os.path.join(dir_temp, f'base_X.png'))
+                Renderer.render()
+                Renderer.rotate_bone(obj, [('頭', 'X', -60)])
 
-        # object with poses
-        print(obj)
-        if hasattr(obj, 'pose') and hasattr(obj.pose, 'bones') and obj.pose.bones is not None:
-            # rotate head
-            r.poseRig(
-                obj,
-                [
-                    ('頭', 'Y', 60)
-                ]
-            )
-            r.set_output_path(os.path.join(dir_temp, f'{key}.Y60.png'))
-            r.render()
+                Renderer.rotate_bone(obj, [('頭', 'Z', 60)])
+                Renderer.set_output_path(os.path.join(dir_temp, f'base_Z.png'))
+                Renderer.render()
+                Renderer.rotate_bone(obj, [('頭', 'Z', -60)])
 
-            r.poseRig(
-                obj,
-                [
-                    ('頭', 'Y', -60)
-                ]
-            )
-        obj.select_set(False)
+            bpy.ops.object.mode_set(mode='OBJECT')
 
-    r.exit()
+            obj.select_set(False)
 
 # endregion
