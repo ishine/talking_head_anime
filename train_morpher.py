@@ -140,7 +140,7 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='configs/train_tha.yaml',
+    parser.add_argument('--config', type=str, default='configs/train_morpher.yaml',
                         help='config file path')
 
     parser.add_argument('--train', action='store_true',
