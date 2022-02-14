@@ -1,19 +1,16 @@
 import argparse
-import glob
 import os
 
 from omegaconf import OmegaConf
 import torch
 import torch.nn.functional as F
 
-from utils.util import save_files, build_models_from_config, build_datasets_from_config
-from utils.logging import get_logger
 from trainer_base import BaseTrainer
 
 
-class Trainer(BaseTrainer):
+class MorpherTrainer(BaseTrainer):
     def __init__(self, conf):
-        super(Trainer, self).__init__(conf)
+        super(MorpherTrainer, self).__init__(conf)
 
     # region Training
 
@@ -21,19 +18,15 @@ class Trainer(BaseTrainer):
         loss = {}
         logs = {}
 
-        # input image: resting input image
-        # pose1: pose image with left eye, right eye and mouth
-        # pose2: pose image with neck tip x-rotation, neck tip y-rotation, and neck root z-rotation
-
         gt_rest_img = batch['img_base'].to(self.device)
-        pose = batch['pose'].to(self.device)
+        shape = batch['shape'].to(self.device)
 
-        gt_morphed_img = batch['img_target'].to(self.device)
-        normalized_diff = (((gt_morphed_img - gt_rest_img)))
+        gt_shape_img = batch['img_shape'].to(self.device)
+        normalized_diff = (((gt_shape_img - gt_rest_img)))
 
-        result = self.models['FaceMorpher'](gt_rest_img, pose)
+        result = self.models['FaceMorpher'](gt_rest_img, shape)
         gen_morphed_img = result['e2']
-        loss['l1_morph'] = F.l1_loss(gen_morphed_img, gt_morphed_img)
+        loss['l1_morph'] = F.l1_loss(gen_morphed_img, gt_shape_img)
 
         loss['backward'] = loss['l1_morph']
 
@@ -47,7 +40,7 @@ class Trainer(BaseTrainer):
 
         logs = {
             'img_base': batch['img_base'],
-            'img_target': batch['img_target'],
+            'img_target': batch['img_shape'],
             'img_gen': result['e2'],
             'e0': result['e0'],
             'e1': result['e1'][:, :3],
@@ -131,7 +124,7 @@ def main():
     os.makedirs(conf.logging['log_dir'], exist_ok=True)
 
     if args.train:
-        trainer = Trainer(conf)
+        trainer = MorpherTrainer(conf)
         trainer.run()
 
     if args.infer:

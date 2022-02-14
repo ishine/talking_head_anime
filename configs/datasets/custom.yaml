@@ -1,4 +1,4 @@
-class: datasets.blends.LRLabeledDataset
+class: datasets.custom.ImageDataset
 
 make_display: False
 imsize: 256

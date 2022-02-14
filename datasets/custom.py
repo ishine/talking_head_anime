@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
     conf = OmegaConf.load('configs/datasets/custom.yaml')
     conf.mode = 'all'
-    d = LRLabeledDataset(conf)
+    d = ImageDataset(conf)
     loader = DataLoader(d, batch_size=4, num_workers=4)
     it = cycle(loader)
 

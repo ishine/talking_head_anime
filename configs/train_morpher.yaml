@@ -1,6 +1,6 @@
 logging:
   log_dir: "./logs/"
-  seed: "15"
+  seed: "16"
   nepochs: 10000
   device: cuda
   save_optimizer_state: False
@@ -26,20 +26,20 @@ datasets:
     ]
 
     mode: train
-    batch_size: 1
+    batch_size: 25
     shuffle: True
-    num_workers: 1
+    num_workers: 8
 
   eval:
     class: datasets.base.MultiDataset
     datasets: [
-        'configs/datasets/blends.yaml',
+        'configs/datasets/custom.yaml',
     ]
 
     mode: eval
-    batch_size: 1
+    batch_size: 25
     shuffle: False
-    num_workers: 1
+    num_workers: 2
 
 models:
   FaceMorpher:
