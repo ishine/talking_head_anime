@@ -1,0 +1,66 @@
+logging:
+  log_dir: "./logs/"
+  seed: "17_rotator"
+  nepochs: 10000
+  device: cuda
+  save_optimizer_state: False
+
+  freq: 500
+
+  save_files: [
+      '*.py',
+      '*.sh',
+      'configs/*.*',
+      'configs/dataset/*.*',
+      'datasets/*.*',
+      'models/*.*',
+      'utils/*.*',
+  ]
+
+
+datasets:
+  train:
+    class: datasets.base.MultiDataset
+    datasets: [
+        'configs/datasets/custom.yaml',
+    ]
+
+    mode: train
+    batch_size: 25
+    shuffle: True
+    num_workers: 8
+
+  eval:
+    class: datasets.base.MultiDataset
+    datasets: [
+        'configs/datasets/custom.yaml',
+    ]
+
+    mode: eval
+    batch_size: 25
+    shuffle: False
+    num_workers: 2
+
+models:
+  FaceRotator:
+    class: models.tha1.TwoAlgorithmFaceRotator
+
+    optim:
+      class: torch.optim.Adam
+      kwargs:
+        lr: 1e-4
+        betas: [ 0.5, 0.999 ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+

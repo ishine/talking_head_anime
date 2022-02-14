@@ -169,8 +169,8 @@ class TwoAlgorithmFaceRotator(nn.Module):
 
         xs = torch.linspace(-1, 1, steps=a0.shape[-1])
         ys = torch.linspace(-1, 1, steps=a0.shape[-2])
-        grid_x, grid_y = torch.meshgrid(xs, ys, indexing='ij')
-        identity_appearance_flow = torch.stack((grid_x, grid_y), dim=0).unsqueeze(0)  # 1 x 2 x H x W
+        grid_x, grid_y = torch.meshgrid(xs, ys)
+        identity_appearance_flow = torch.stack((grid_x, grid_y), dim=0).unsqueeze(0).to(d2.device)  # 1 x 2 x H x W
         e3 = self.appearance_flow(d2) + identity_appearance_flow
         e4 = F.grid_sample(a0, e3.permute((0, 2, 3, 1)))
 
