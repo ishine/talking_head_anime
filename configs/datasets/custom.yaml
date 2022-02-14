@@ -1,9 +1,8 @@
-class: datasets.custom.ImageDataset
+class: datasets.blends.LRLabeledDataset
 
 make_display: False
+imsize: 256
 
 path:
-  blender: ./blender
-  root: data/3d_models/images
-  metadata: data/3d_models/filtered_idxs.txt
-  tmp: data/3d_models/tmp
+  root: data/3d_models/imgset_220208
+  metadata: data/3d_models/data_labels.txt

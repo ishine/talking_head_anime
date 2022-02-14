@@ -14,9 +14,18 @@ class ImageDataset(BaseDataset):
     def __init__(self, conf):
         super(ImageDataset, self).__init__(conf)
 
-        self.dirs = [os.path.join(self.conf.path['root'], path)
-                     for path in os.listdir(self.conf.path['root'])
-                     if os.path.isdir(os.path.join(self.conf.path['root'], path))]
+        with open(self.conf.path['metadata'], 'r', encoding='utf-8') as f:
+            data = f.readlines()
+
+        self.dirs = []
+        for idx, line in enumerate(data):
+            model, label = line.strip().split('|')
+            if label == 'L' or label == 'R':
+                self.dirs.append({
+                    'model': model,
+                    'idx': idx,
+                    'label': label
+                })
 
         train_split_idx = int(len(self.dirs) * 0.9)
         if self.conf.mode == 'train':
@@ -29,17 +38,23 @@ class ImageDataset(BaseDataset):
             raise NotImplementedError
 
         self.data = []
-        for path_dir in self.dirs:
-            files = [os.path.join(path_dir, file) for file in os.listdir(path_dir)
-                     if '_' in file]
-            self.data.extend(files)
+        for model_data in self.dirs:
+            dir_imgs = os.path.join(self.conf.path['root'], str(model_data['idx']))
+            for file in os.listdir(dir_imgs):
+                if file.startswith('pose'):
+                    path_img = os.path.join(dir_imgs, file)
+                    self.data.append((path_img, model_data))
 
     def __len__(self):
         return len(self.data)
 
     @staticmethod
-    def np_img_to_torch(img):
-        return torch.from_numpy(img).permute((2, 0, 1)) / 255.
+    def read_img(path_img, imsize=256):
+        img = cv2.imread(path_img, cv2.IMREAD_UNCHANGED)
+        img = cv2.resize(img, (imsize, imsize))
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+        torch_img = torch.from_numpy(img).permute((2, 0, 1)) / 255.
+        return torch_img
 
     def augmentation(self, images):
         brightness_scale = 0.5
@@ -67,33 +82,33 @@ class ImageDataset(BaseDataset):
     def getitem(self, idx):
         return_data = {}
 
-        path_pose = self.data[idx]
-        path_base = os.path.join(os.path.dirname(path_pose), os.path.basename(path_pose).split('_')[0] + '.png')
+        path_pose, model_data = self.data[idx]  # example: pose_0.8972_0.5354_0.3292_6_21_5.png
+        dir_model = os.path.dirname(path_pose)
 
-        img_base_np = cv2.imread(path_base, cv2.IMREAD_UNCHANGED)
-        try:
-            assert img_base_np.shape == (512, 512, 4), f'{path_base}, {img_base_np.shape}'
-        except:
-            print(path_pose, path_base)
-        img_base_np = cv2.resize(img_base_np, (256, 256))
-        img_base_np = cv2.cvtColor(img_base_np, cv2.COLOR_BGRA2RGBA)
-        img_base = self.np_img_to_torch(img_base_np)
+        feature = os.path.basename(path_pose)[:-4].split('_')[1:]
 
-        img_target_np = cv2.imread(path_pose, cv2.IMREAD_UNCHANGED)
-        assert img_target_np.shape == (512, 512, 4), f'{path_pose}, {img_target_np.shape}'
-        img_target_np = cv2.resize(img_target_np, (256, 256))
-        img_target_np = cv2.cvtColor(img_target_np, cv2.COLOR_BGRA2RGBA)
-        img_target = self.np_img_to_torch(img_target_np)
+        shape = feature[:3]
+        pose = feature[3:]
 
-        img_base, img_target = self.augmentation((img_base, img_target))
+        path_base = os.path.join(dir_model, 'base.png')
+        path_shape = os.path.join(dir_model, f'shape_{shape[0]}_{shape[1]}_{shape[2]}.png')
 
-        pose = path_pose.rsplit('.', 1)[0].rsplit('_', 3)[-3:]
-        pose = [float(val) for val in pose]
-        assert len(pose) == 3, path_pose
+        img_base = self.read_img(path_base, imsize=self.conf.imsize)
+        img_shape = self.read_img(path_shape, imsize=self.conf.imsize)
+        img_pose = self.read_img(path_pose, imsize=self.conf.imsize)
+
+        img_base, img_shape, img_pose = self.augmentation((img_base, img_shape, img_pose))
 
         return_data['img_base'] = img_base
-        return_data['img_target'] = img_target
-        return_data['pose'] = torch.FloatTensor(pose)
+        return_data['img_shape'] = img_shape
+        return_data['img_pose'] = img_pose
+
+        if model_data['label'] == 'L':
+            return_data['shape'] = torch.FloatTensor([float(shape[0]), float(shape[1]), float(shape[2])])
+        else:  # left-right eye changed
+            return_data['shape'] = torch.FloatTensor([float(shape[0]), float(shape[2]), float(shape[1])])
+
+        return_data['pose'] = torch.FloatTensor([float(val) for val in pose])
 
         return return_data
 
@@ -120,14 +135,9 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from utils.util import cycle
 
-    import sys
-
-    code_root = '/root/talking_head_anime'
-    os.chdir(code_root)
-    sys.path.append(os.getcwd())
-
     conf = OmegaConf.load('configs/datasets/custom.yaml')
-    d = ImageDataset(conf)
+    conf.mode = 'all'
+    d = LRLabeledDataset(conf)
     loader = DataLoader(d, batch_size=4, num_workers=4)
     it = cycle(loader)
 
