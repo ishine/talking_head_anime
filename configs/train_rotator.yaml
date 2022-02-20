@@ -1,6 +1,6 @@
 logging:
   log_dir: "./logs/"
-  seed: "17_rotator"
+  seed: "18_rotator"
   nepochs: 10000
   device: cuda
   save_optimizer_state: False

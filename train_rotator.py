@@ -29,22 +29,42 @@ class RotatorTrainer(BaseTrainer):
         gt_pose_img = batch['img_pose'].to(self.device)
 
         result = self.models['FaceRotator'](gt_shape_img, pose)
-        gen_pose_img = result['e4']
-        loss['l1_rotator'] = F.l1_loss(gen_pose_img, gt_shape_img)
+        gen_im1 = result['e2']
+        gen_im2 = result['e4']
+
+        loss['l1_im1'] = F.l1_loss(gen_im1, gt_shape_img)
+        loss['l1_im2'] = F.l1_loss(gen_im2, gt_shape_img)
+        loss['l1_rotator'] = loss['l1_im1'] + loss['l1_im2']
 
         loss['backward'] = loss['l1_rotator']
 
-        losses_percep_rgb = self.losses['VGG'](gen_pose_img[:, :3], gt_pose_img[:, :3])
-        losses_percep_gray = self.losses['VGG'](gen_pose_img[:, 3].unsqueeze(1), gt_pose_img[:, 3].unsqueeze(1))
-
-        for i in range(3):
-            loss[f'l1_percep_rgb_{i}'] = losses_percep_rgb[f'feat_{i}']
-            loss[f'l1_percep_gray_{i}'] = losses_percep_gray[f'feat_{i}']
+        # percep for im1
+        loss['l1_percep_im1'] = torch.FloatTensor(0)
+        losses_percep_rgb_im1 = self.losses['VGG'](gen_im1[:, :3], gt_pose_img[:, :3])
+        losses_percep_gray_im1 = self.losses['VGG'](gen_im1[:, 3].unsqueeze(1), gt_pose_img[:, 3].unsqueeze(1))
 
         if self.global_epoch >= 1:
-            loss_percep_rgb = losses_percep_rgb['feat_0'] + losses_percep_rgb['feat_1'] + losses_percep_rgb['feat_2']
-            loss_percep_gray = losses_percep_gray['feat_0'] + losses_percep_gray['feat_1'] + losses_percep_gray['feat_2']
-            loss['l1_percep'] = loss_percep_rgb + loss_percep_gray
+            loss['l1_percep_rgb_im1'] = losses_percep_rgb_im1['feat_0'] + losses_percep_rgb_im1['feat_1'] + \
+                                        losses_percep_rgb_im1['feat_2']
+            loss['l1_percep_gray_im1'] = losses_percep_gray_im1['feat_0'] + losses_percep_gray_im1['feat_1'] + \
+                                         losses_percep_gray_im1['feat_2']
+            loss['l1_percep_im1'] = loss['l1_percep_rgb_im1'] + loss['l1_percep_gray_im1']
+
+        # percep for im2
+        loss['l1_percep_im2'] = torch.FloatTensor(0)
+        losses_percep_rgb_im2 = self.losses['VGG'](gen_im2[:, :3], gt_pose_img[:, :3])
+        losses_percep_gray_im2 = self.losses['VGG'](gen_im2[:, 3].unsqueeze(1), gt_pose_img[:, 3].unsqueeze(1))
+
+        if self.global_epoch >= 1:
+            loss['l1_percep_rgb_im2'] = losses_percep_rgb_im2['feat_0'] + losses_percep_rgb_im2['feat_1'] + \
+                                        losses_percep_rgb_im2['feat_2']
+            loss['l1_percep_gray_im2'] = losses_percep_gray_im2['feat_0'] + losses_percep_gray_im2['feat_1'] + \
+                                         losses_percep_gray_im2['feat_2']
+            loss['l1_percep_im2'] = loss['l1_percep_rgb_im2'] + loss['l1_percep_gray_im2']
+        loss['l1_percep'] = loss['l1_percep_im1'] + loss['l1_percep_im2']
+
+        if self.global_epoch >= 1:
+            loss['backward'] = loss['backward'] + loss['l1_percep']
 
         logs = {
             'img_shape': batch['img_shape'],
