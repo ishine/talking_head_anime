@@ -1,6 +1,6 @@
 ## Environment
 
-See `Environment.md`.
+See [`Environment.md`](./Environment.md).
 
 ```shell
 ln -s YOUR_DATA_PATH data
@@ -10,7 +10,15 @@ ln -s YOUR_LOG_PATH logs
 
 ## Dataset
 
-TODO
+You can train Talking Head Anime with two different type of datasets:
+
+1. Images Dataset (recommended)
+2. 3D-models Dataset
+
+If you don't have appropriate dataset, you may follow `Dataset_Generation.md` or write your own dataset code with your
+data.
+
+Check `dataset.ipynb` for details.
 
 ### Crawling
 
