@@ -280,6 +280,21 @@ class Renderer:
         bpy.ops.object.mode_set(mode='OBJECT')
 
     @staticmethod
+    def change_pose(bone, axis, value, camera_name='Camera', light_name="Light"):
+        bpy.ops.object.select_all(action='DESELECT')  # Deselect all objects
+
+        for obj_key, obj in bpy.data.objects.items():
+            if obj_key == camera_name or obj_key == light_name:
+                continue
+
+            # object with poses
+            if hasattr(obj, 'pose') and hasattr(obj.pose, 'bones') and obj.pose.bones is not None:
+                # rotate head
+                Renderer.rotate_bone(obj, [(bone, axis, value)])
+                bpy.ops.object.mode_set(mode='OBJECT')
+                obj.select_set(False)
+
+    @staticmethod
     @suppress_stdout
     def fix_model():
         for key, obj in bpy.data.objects.items():
