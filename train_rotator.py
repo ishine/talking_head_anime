@@ -32,8 +32,8 @@ class RotatorTrainer(BaseTrainer):
         gen_im1 = result['e2']
         gen_im2 = result['e4']
 
-        loss['l1_im1'] = F.l1_loss(gen_im1, gt_shape_img)
-        loss['l1_im2'] = F.l1_loss(gen_im2, gt_shape_img)
+        loss['l1_im1'] = F.l1_loss(gen_im1, gt_pose_img)
+        loss['l1_im2'] = F.l1_loss(gen_im2, gt_pose_img)
         loss['l1_rotator'] = loss['l1_im1'] + loss['l1_im2']
 
         loss['backward'] = loss['l1_rotator']
