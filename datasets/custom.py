@@ -40,10 +40,11 @@ class ImageDataset(BaseDataset):
         self.data = []
         for model_data in self.dirs:
             dir_imgs = os.path.join(self.conf.path['root'], str(model_data['idx']))
-            for file in os.listdir(dir_imgs):
-                if file.startswith('pose'):
-                    path_img = os.path.join(dir_imgs, file)
-                    self.data.append((path_img, model_data))
+            if os.path.exists(dir_imgs):
+                for file in os.listdir(dir_imgs):
+                    if file.startswith('pose'):
+                        path_img = os.path.join(dir_imgs, file)
+                        self.data.append((path_img, model_data))
 
     def __len__(self):
         return len(self.data)

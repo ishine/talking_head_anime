@@ -69,7 +69,6 @@ class RotatorTrainer(BaseTrainer):
         logs = {
             'img_shape': batch['img_shape'],
             'img_pose': batch['img_pose'],
-            'img_gen': result['e2'],
             'e0': result['e0'],
             'e1': result['e1'][:, :3],
             'a1': result['a1'],

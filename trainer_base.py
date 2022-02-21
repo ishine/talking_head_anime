@@ -99,17 +99,6 @@ class BaseTrainer:
 
             self.global_step += 1
 
-        # losses_train = {
-        #     key: value / len(pbar_step)
-        #     for key, value in losses_train.items()
-        # }
-        # losses_eval = {
-        #     key: value / (len(pbar_step) // self.conf.logging.freq['eval'])
-        #     for key, value in losses_eval.items()
-        # }
-        # self.log(losses_train, {}, mode='train', key='epoch')
-        # self.log(losses_eval, {}, mode='eval', key='epoch')
-
     def run(self):
         pbar_epoch = trange(self.conf.logging.nepochs, position=0)
         pbar_epoch.set_description_str('Epoch')
@@ -156,7 +145,7 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='configs/trainer_a2e.yaml',
+    parser.add_argument('--config', type=str, default='configs/trainer.yaml',
                         help='config file path')
 
     parser.add_argument('--train', action='store_true',
