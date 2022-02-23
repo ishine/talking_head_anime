@@ -36,7 +36,7 @@ def main2():
     blend_dir = os.path.join(tmp_dir, str(internal_idx))
     os.makedirs(blend_dir, exist_ok=True)
 
-    for i in range(1):
+    for i in range(50):
         bpy.ops.wm.open_mainfile(filepath=path_blend)
 
         camera_name = "Camera.001"
