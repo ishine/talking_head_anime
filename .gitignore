@@ -9,6 +9,5 @@ logs/
 temp_result/
 metadata/
 
-*.png
 *.zip
 *.blend

@@ -1,12 +1,15 @@
+# Talking Head Anime
+
+Repository to make [Talking Head Anime](https://pkhungurn.github.io/talking-head-anime/) reproducible.
+
+Currently supports:
+* Processing 3D Models to ***Talking Head Anime*** trainable dataset.
+* Training ***Talking Head Anime***.
+* ***Talking Head Anime*** inference.
+
 ## Environment
 
 See [`Environment.md`](./Environment.md).
-
-```shell
-ln -s YOUR_DATA_PATH data
-ln -s YOUR_BLENDER_PATH blender
-ln -s YOUR_LOG_PATH logs
-```
 
 ## Dataset
 
@@ -35,4 +38,11 @@ TODO
 
 Check `Inference.ipynb'`.
 
-Inference currently only works on with-GUI environment.
+Inference currently only works with GUI-available environment.
+
+
+## TODO
+
+* Combiner not trained yet...
+* Dockerfile
+* Code cleanup
