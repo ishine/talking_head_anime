@@ -15,23 +15,24 @@ You can train Talking Head Anime with two different type of datasets:
 1. Images Dataset (recommended)
 2. 3D-models Dataset
 
-If you don't have appropriate dataset, you may follow `Dataset_Generation.md` or write your own dataset code with your
-data.
-
-Check `dataset.ipynb` for details.
-
-### Crawling
-
-### Filtering
-
-### Making Train Dataset
+Check `dataset.ipynb` for details. You can generate your own dataset when following `dataset.ipynb`.
 
 ## Training
 
-`python train_tha.py`
+### Morpher
 
-### Configs
+`python train_morpher.py --train`
+
+### Rotator
+
+`python train_rotator.py --train`
+
+### Combiner
 
 TODO
 
-### Custom Dataset
+## Inference
+
+Check `Inference.ipynb'`.
+
+Inference currently only works on with-GUI environment.

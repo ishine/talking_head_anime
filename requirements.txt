@@ -5,3 +5,4 @@ future-fstrings
 omegaconf
 tensorboard
 opencv-python
+ipywidgets
