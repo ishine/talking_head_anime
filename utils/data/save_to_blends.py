@@ -1,6 +1,5 @@
 import os
 import sys
-import subprocess
 
 import bpy
 
@@ -72,15 +71,6 @@ def save_one_blend(path_model, path_blend):
     bpy.ops.wm.quit_blender()
 
     return path_blend
-
-
-def save(params):
-    path_model, path_blend = params
-    command = f'python -m utils.data.save_to_blends "{path_model}" "{path_blend}"'
-    subprocess.call(
-        command, shell=True,
-        stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb')
-    )
 
 
 if __name__ == '__main__':
