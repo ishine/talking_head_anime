@@ -1,12 +1,30 @@
 # Environment for Talking Head Anime
 
-Tutorial here is tested with linux only.
+Here, we provide 2 methods: `Conda` and `Docker`(recommended).
 
-For windows, I'll add some instructions that might be enough, but not sure.
+## Docker
 
-Here, we provide 2 methods: `Conda` and `Docker`.
+### Build Image
+
+`docker build -f Dockerfile -t talking_head_anime:v0.0.0 .`
+
+### Run Container
+
+use your own input for `YOUR_CONTAINER_NAME` and `YOUR_DATA_DIR`
+
+```docker run -it \ 
+--ipc=host --gpus=all \ 
+-p 39980:39980 -p 39981:8888 \
+-v YOUR_DATA_DIR:/root/talking_head_anime_2/data \ 
+--name YOUR_CONTAINR_NAME \
+talking_head_anime:v0.0.0
+```
 
 ## Conda env
+
+Tutorial here is tested with **Ubuntu 18.04** only.
+
+For windows, I'll add some instructions that might be enough, but not sure.
 
 Make sure you are at `conda` environment with `python=3.7`. (Here, named as `blender_py37`)
 
@@ -48,6 +66,10 @@ Appropriate image dataset:
 <br>
 <br>
 
+#### Runninng Dataset Turorial
+
+`conda install nb_conda_kernels`
+
 #### Blender related dependencies
 
 Here, we'll install python `blender` module and blender addons needed to open 3d models.
@@ -72,7 +94,7 @@ bpy_post_install
 
 ```
 mkdir addons
-wget https://github.com/michaeldegroot/cats-blender-plugin/archive/master.zip -O ../addons/cats-blender-plugin-master.zip
+wget https://github.com/michaeldegroot/cats-blender-plugin/archive/master.zip -O addons/cats-blender-plugin-master.zip
 ```
 
 #### Pyvirtualdisplay
@@ -87,9 +109,4 @@ apt-get install xvfb -y
 apt-get install libxrender1 -y
 pip install pyvirtualdisplay
 ```
-
-## Docker
-
-TODO
-
 

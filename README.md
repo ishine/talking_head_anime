@@ -3,6 +3,7 @@
 Repository to make [Talking Head Anime](https://pkhungurn.github.io/talking-head-anime/) reproducible.
 
 Currently supports:
+
 * Processing 3D Models to ***Talking Head Anime*** trainable dataset.
 * Training ***Talking Head Anime***.
 * ***Talking Head Anime*** inference.
@@ -36,7 +37,7 @@ TODO
 
 ## Inference
 
-Check `Inference.ipynb'`.
+Check `Inference.ipynb`.
 
 Inference currently only works with GUI-available environment.
 
