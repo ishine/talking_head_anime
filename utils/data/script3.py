@@ -28,10 +28,10 @@ def main2():
     print(metadata[internal_idx])
     path_blend, label = metadata[internal_idx].strip().split('|')
 
-    if label.lower() != 'l' and label != 'r':
+    if label.lower() != 'l' and label.lower() != 'r':
         return
 
-    tmp_dir = './data/3d_models/imgset'
+    tmp_dir = 'data/3d_models/imgset'
     os.makedirs(tmp_dir, exist_ok=True)
     blend_dir = os.path.join(tmp_dir, str(internal_idx))
     os.makedirs(blend_dir, exist_ok=True)
