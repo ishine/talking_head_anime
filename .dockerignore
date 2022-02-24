@@ -1,0 +1,14 @@
+__pycache__/
+.idea/
+.ipynb_checkpoints/
+
+addons/
+checkpoint/
+samples/
+./data/
+logs/
+temp_result/
+metadata/
+
+*.zip
+*.blend
