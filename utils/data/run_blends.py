@@ -47,7 +47,7 @@ if __name__ == '__main__':
     path_models = [item.strip() for item in data]
 
     path_blends = [item.replace(args.models_dir, args.blends_dir) + '.blend'
-                   for item in path_models][:100]
+                   for item in path_models]
 
     pool = Pool(processes=args.processes)
     for _ in tqdm(pool.imap_unordered(save, zip(
