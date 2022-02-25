@@ -4,5 +4,5 @@ make_display: False
 imsize: 256
 
 path:
-  root: data/3d_models/imgset_220208
-  metadata: data/3d_models/data_labels.txt
+  root: data/3d_models/imgset
+  metadata: data/3d_models/filtered_idxs.txt
