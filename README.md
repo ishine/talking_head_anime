@@ -45,5 +45,4 @@ Inference currently only works with GUI-available environment.
 ## TODO
 
 * Combiner not trained yet...
-* Dockerfile
 * Code cleanup

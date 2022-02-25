@@ -6,7 +6,7 @@ Here, we provide 2 methods: `Conda` and `Docker`(recommended).
 
 ### Build Image
 
-`docker build -f Dockerfile -t talking_head_anime:v0.0.0 .`
+`docker build -f Dockerfile -t talking_head_anime:v1.0.0 .`
 
 ### Run Container
 
@@ -17,7 +17,7 @@ use your own input for `YOUR_CONTAINER_NAME` and `YOUR_DATA_DIR`
 -p 39980:39980 -p 39981:8888 \
 -v YOUR_DATA_DIR:/root/talking_head_anime_2/data \ 
 --name YOUR_CONTAINR_NAME \
-talking_head_anime:v0.0.0
+talking_head_anime:v1.0.0
 ```
 
 ## Conda env
